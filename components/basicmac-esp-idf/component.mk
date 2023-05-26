@@ -1,5 +1,5 @@
 #COMPONENT_OWNBUILDTARGET = 1
-COMPONENT_SRCDIRS := src/aes src/hal src/lmic
+COMPONENT_SRCDIRS := src src/aes src/hal src/lmic
 COMPONENT_ADD_INCLUDEDIRS := include
 
 #AES_OBJS = src/aes/lmic.o src/aes/other.o

@@ -36,7 +36,7 @@
 #undef _GNU_SOURCE
 // Prevent warning on samd where samd21g18a.h from CMSIS defines this
 #undef LITTLE_ENDIAN
-#include "../basicmac.h"
+#include "../basicmac-esp-idf.h"
 #include "hal.h"
 
 #include "freertos/FreeRTOS.h"
@@ -46,6 +46,7 @@
 #include "driver/timer.h"
 #include "esp_log.h"
 
+#define LMIC_SPI SPI2_HOST
 #define TAG "lmic"
 
 extern const lmic_pinmap lmic_pins;
@@ -54,18 +55,13 @@ extern const lmic_pinmap lmic_pins;
 // except when waking up from sleep, which typically takes 3500us. Since
 // we cannot know here if we are in sleep, we'll have to assume we are.
 // Since 3500 is typical, not maximum, wait a bit more than that.
-static unsigned long MAX_BUSY_TIME = 5000;
+static unsigned long MAX_BUSY_TIME_MS = 5;
 
 // -----------------------------------------------------------------------------
 // I/O
 
 static void hal_io_init () {
     uint8_t i;
-    // Checks below assume that all special pin values are >= LMIC_UNUSED_PIN, so check that.
-    #if defined(BRD_sx1261_radio) || defined(BRD_sx1262_radio)
-    LMIC_STATIC_ASSERT(LMIC_UNUSED_PIN < LMIC_CONTROLLED_BY_DIO3, "Unexpected constant values");
-    LMIC_STATIC_ASSERT(LMIC_UNUSED_PIN < LMIC_CONTROLLED_BY_DIO2, "Unexpected constant values");
-    #endif // defined(BRD_sx1261_radio) || defined(BRD_sx1262_radio)
 
     ASSERT(lmic_pins.nss < LMIC_UNUSED_PIN);
     ASSERT(lmic_pins.rst <= LMIC_UNUSED_PIN);
@@ -178,11 +174,11 @@ void hal_pin_busy_wait (void) {
         // sleep) are measured from the *end* of the previous SPI
         // transaction, so we could wait shorter if we remember when
         // that was.
-        delayMicroseconds(MAX_BUSY_TIME);
+        vTaskDelay(MAX_BUSY_TIME_MS / portTICK_PERIOD_MS);
     } else {
-        unsigned long start = micros();
-
-        while((micros() - start) < MAX_BUSY_TIME && gpio_get_level(lmic_pins.busy)) /* wait */;
+        // unsigned long start = micros(); FIXME
+        vTaskDelay(MAX_BUSY_TIME_MS / portTICK_PERIOD_MS);
+        // while((micros() - start) < MAX_BUSY_TIME_MS && gpio_get_level(lmic_pins.busy)) /* wait */;
     }
 }
 
@@ -215,19 +211,26 @@ static void hal_spi_init () {
 
   // init device
     spi_device_interface_config_t devcfg = {
-        .clock_speed_hz = 100000,
+        .clock_speed_hz = 1000000,
         .mode = 0,
         .spics_io_num = -1,
         .queue_size = 7,
     };
 
-    ret = spi_bus_initialize(LMIC_SPI, &buscfg, 1);
+    ret = spi_bus_initialize(LMIC_SPI, &buscfg, 0);
     assert(ret == ESP_OK);
 
     ret = spi_bus_add_device(LMIC_SPI, &devcfg, &spi_handle);
     assert(ret == ESP_OK);
 
     ESP_LOGI(TAG, "Finished SPI initialization");
+}
+
+void hal_spi_select (int on) {
+    if (on)
+        gpio_set_level(lmic_pins.nss, !on);
+    else
+        gpio_set_level(lmic_pins.nss, !on);
 }
 
 // perform SPI transaction with radio
@@ -259,6 +262,7 @@ static void hal_time_init () {
   config.divider = 1600;
   config.intr_type = 0;
   config.counter_en = TIMER_PAUSE;
+  config.clk_src = TIMER_SRC_CLK_APB;
   /*Configure timer*/
   timer_init(timer_group, timer_idx, &config);
   /*Stop timer counter*/
@@ -353,12 +357,12 @@ static void hal_debug_init() {
     #endif
 }
 
-#if !defined(CFG_DEBUG_STREAM)
-#error "CFG_DEBUG needs CFG_DEBUG_STREAM defined in target-config.h"
-#endif
+// #if !defined(CFG_DEBUG_STREAM)
+// #error "CFG_DEBUG needs CFG_DEBUG_STREAM defined in target-config.h"
+// #endif
 
 void hal_debug_str (const char* str) {
-    CFG_DEBUG_STREAM.print(str);
+    ESP_LOGI(TAG, "Debug %s", str);
 }
 
 void hal_debug_led (int val) {
@@ -383,7 +387,7 @@ void hal_printf_init() {
 }
 #endif // defined(LMIC_PRINTF_TO)
 
-void hal_init() {
+void lmic_hal_init(void *) {
     // configure radio I/O and interrupt handler
     hal_io_init();
     // configure radio SPI
@@ -392,11 +396,10 @@ void hal_init() {
     hal_time_init();
 }
 
-void hal_failed(const char *file, u2_t line) {
+void hal_failed() {
     // HALT...
-    ESP_LOGE(TAG, "LMIC HAL failed (%s:%u)", file, line);
+    ESP_LOGE(TAG, "LMIC HAL failed");
     hal_disableIRQs();
-    hal_sleep();
     while(1);
 }
 
@@ -419,23 +422,23 @@ void hal_fwinfo (hal_fwi* /* fwi */) {
 }
 
 u1_t* hal_joineui (void) {
-    return nullptr;
+    return NULL;
 }
 
 u1_t* hal_deveui (void) {
-    return nullptr;
+    return NULL;
 }
 
 u1_t* hal_nwkkey (void) {
-    return nullptr;
+    return NULL;
 }
 
 u1_t* hal_appkey (void) {
-    return nullptr;
+    return NULL;
 }
 
 u1_t* hal_serial (void) {
-    return nullptr;
+    return NULL;
 }
 
 u4_t  hal_region (void) {

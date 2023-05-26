@@ -1,9 +1,9 @@
-#pragma once 
+#pragma once
 #ifdef __cplusplus
 extern "C"{
 #endif
 
-#include "../src/lmic/lmic.h"
+#include "../src/hal/hal.h"
 
 #ifdef __cplusplus
 }

@@ -24,40 +24,12 @@
  * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * This the HAL to run LMIC on top of the Arduino environment.
  *******************************************************************************/
-#ifndef _hal_hal_h_
-#define _hal_hal_h_
 
-#define NUM_DIO 3
+#ifndef _hw_h_
+#define _hw_h_
 
+// Dummy file, not used by this HAL (but must be present, since other
+// files include it).
 
-struct lmic_pinmap {
-    u1_t nss;
-    // Written HIGH in TX mode, LOW otherwise.
-    // Typically used with a single RXTX switch pin.
-    u1_t tx;
-    // Written HIGH in RX mode, LOW otherwise.
-    // Typicaly used with separate RX/TX pins, to allow switching off
-    // the antenna switch completely.
-    u1_t rx;
-    u1_t rst;
-    u1_t dio[NUM_DIO];
-    u1_t busy;
-    u1_t tcxo;
-    u1_t spi[3]; // MISO, MOSI, SCK
-};
-
-typedef struct lmic_pinmap lmic_pinmap;
-
-// Use this for any unused pins.
-#define LMIC_UNUSED_PIN 0xFD
-
-#if defined(BRD_sx1261_radio) || defined(BRD_sx1262_radio)
-// Used for lmic_pinmap.tcxo only
-#define LMIC_CONTROLLED_BY_DIO3 0xff
-#define LMIC_CONTROLLED_BY_DIO2 0xfe
-#endif // defined(BRD_sx1261_radio) || defined(BRD_sx1262_radio)
-
-#endif // _hal_hal_h_
+#endif

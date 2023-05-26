@@ -11,107 +11,218 @@
  *******************************************************************************/
 
 #include "freertos/FreeRTOS.h"
-#include "esp_event.h"
-#include "driver/gpio.h"
-#include "nvs_flash.h"
+#include <lmic.h>
+#include <hal.h>
+#include "driver/spi_master.h"
 
-#include "ttn.h"
+#include "esp_log.h"
+#include "esp_timer.h"
 
-// NOTE:
-// The LoRaWAN frequency and the radio chip must be configured by running 'idf.py menuconfig'.
-// Go to Components / The Things Network, select the appropriate values and save.
-
-// Copy the below hex strings from the TTN console (Applications > Your application > End devices
-// > Your device > Activation information)
-
-// AppEUI (sometimes called JoinEUI)
-const char *appEui = "0000000000000000";
-// DevEUI
-const char *devEui = "a93f6ba3b2c8f5fa";
-// AppKey
-const char *appKey = "35c9553effba479da3afff3b41678ae6";
-
-// Pins and other resources
-#define TTN_SPI_HOST      SPI2_HOST
-#define TTN_SPI_DMA_CHAN  SPI_DMA_DISABLED
-#define TTN_PIN_SPI_SCLK  35
-#define TTN_PIN_SPI_MOSI  48
-#define TTN_PIN_SPI_MISO  47
-#define TTN_PIN_NSS       36
-#define TTN_PIN_RXTX      21
-#define TTN_PIN_RST       TTN_NOT_CONNECTED
-#define TTN_PIN_DIO0      13
-#define TTN_PIN_DIO1      14
-
-#define TX_INTERVAL 30
-static uint8_t msgData[] = "Hello, world";
+#include "freertos/task.h"
 
 
-void sendMessages(void* pvParameter)
-{
-    while (1) {
-        printf("Sending message...\n");
-        ttn_response_code_t res = ttn_transmit_message(msgData, sizeof(msgData) - 1, 1, false);
-        printf(res == TTN_SUCCESSFUL_TRANSMISSION ? "Message sent.\n" : "Transmission failed.\n");
+static const char* TAG = "ESP";
 
-        vTaskDelay(TX_INTERVAL * pdMS_TO_TICKS(1000));
+// This EUI must be in little-endian format, so least-significant-byte
+// first. When copying an EUI from ttnctl output, this means to reverse
+// the bytes. For TTN issued EUIs the last bytes should be 0xD5, 0xB3,
+// 0x70.
+static const u1_t APPEUI[8]={ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+void os_getJoinEui (u1_t* buf) { memcpy(buf, APPEUI, 8);}
+
+// This should also be in little endian format, see above.
+// static const u1_t PROGMEM DEVEUI[8]={ 0xa9, 0x3f, 0x6b, 0xa3, 0xb2, 0xc8, 0xf5, 0xfa };
+static const u1_t DEVEUI[8]={ 0xfa, 0xf5, 0xc8, 0xb2, 0xa3, 0x6b, 0x3f, 0xa9 };
+void os_getDevEui (u1_t* buf) { memcpy(buf, DEVEUI, 8);}
+
+// This key should be in big endian format (or, since it is not really a
+// number but a block of memory, endianness does not really apply). In
+// practice, a key taken from ttnctl can be copied as-is.
+// The key shown here is the semtech default key.
+static const u1_t APPKEY[16] = { 0x35, 0xc9, 0x55, 0x3e, 0xff, 0xba, 0x47, 0x9d, 0xa3, 0xaf, 0xff, 0x3b, 0x41, 0x67, 0x8a, 0xe6 };
+void os_getNwkKey (u1_t* buf) {  memcpy(buf, APPKEY, 16);}
+
+// The region to use, this just uses the first one (can be changed if
+// multiple regions are enabled).
+u1_t os_getRegion (void) { return LMIC_regionCode(0); }
+
+// Schedule TX every this many milliseconds (might become longer due to duty
+// cycle limitations).
+const unsigned TX_INTERVAL = 60000;
+
+// Timestamp of last packet sent
+uint32_t last_packet = 0;
+
+const lmic_pinmap lmic_pins = {
+    // NSS input pin for SPI communication (required)
+    .nss = 36,
+    // If needed, these pins control the RX/TX antenna switch (active
+    // high outputs). When you have both, the antenna switch can
+    // powerdown when unused. If you just have a RXTX pin it should
+    // usually be assigned to .tx, reverting to RX mode when idle).
+    //
+    // The SX127x has an RXTX pin that can automatically control the
+    // antenna switch (if internally connected on the transceiver
+    // board). This pin is always active, so no configuration is needed
+    // for that here.
+    // On SX126x, the DIO2 can be used for the same thing, but this is
+    // disabled by default. To enable this, set .tx to
+    // LMIC_CONTROLLED_BY_DIO2 below (this seems to be common and
+    // enabling it when not needed is probably harmless, unless DIO2 is
+    // connected to GND or VCC directly inside the transceiver board).
+    .tx = LMIC_CONTROLLED_BY_DIO2,
+    // .tx = LMIC_UNUSED_PIN,
+    .rx = LMIC_UNUSED_PIN,
+    // Radio reset output pin (active high for SX1276, active low for
+    // others). When omitted, reset is skipped which might cause problems.
+    .rst = 37,
+    // DIO input pins.
+    //   For SX127x, LoRa needs DIO0 and DIO1, FSK needs DIO0, DIO1 and DIO2
+    //   For SX126x, Only DIO1 is needed (so leave DIO0 and DIO2 as LMIC_UNUSED_PIN)
+    .dio = {/* DIO0 */ LMIC_UNUSED_PIN, /* DIO1 */ 14, /* DIO2 */ LMIC_UNUSED_PIN},
+    // Busy input pin (SX126x only). When omitted, a delay is used which might
+    // cause problems.
+    .busy = 13,
+    // TCXO oscillator enable output pin (active high).
+    //
+    // For SX127x this should be an I/O pin that controls the TCXO, or
+    // LMIC_UNUSED_PIN when a crystal is used instead of a TCXO.
+    //
+    // For SX126x this should be LMIC_CONTROLLED_BY_DIO3 when a TCXO is
+    // directly connected to the transceiver DIO3 to let the transceiver
+    // start and stop the TCXO, or LMIC_UNUSED_PIN when a crystal is
+    // used instead of a TCXO. Controlling the TCXO from the MCU is not
+    // supported.
+    .tcxo = LMIC_UNUSED_PIN,
+    .spi = {47, 48, 35}
+};
+
+void onLmicEvent (ev_t ev) {
+    switch(ev) {
+        case EV_SCAN_TIMEOUT:
+            ESP_LOGI(TAG, "EV_SCAN_TIMEOUT");
+            break;
+        case EV_BEACON_FOUND:
+            ESP_LOGI(TAG, "EV_BEACON_FOUND");
+            break;
+        case EV_BEACON_MISSED:
+            ESP_LOGI(TAG, "EV_BEACON_MISSED");
+            break;
+        case EV_BEACON_TRACKED:
+            ESP_LOGI(TAG, "EV_BEACON_TRACKED");
+            break;
+        case EV_JOINING:
+            ESP_LOGI(TAG, "EV_JOINING");
+            break;
+        case EV_JOINED:
+            ESP_LOGI(TAG, "EV_JOINED");
+
+            // Disable link check validation (automatically enabled
+            // during join, but not supported by TTN at this time).
+            LMIC_setLinkCheckMode(0);
+            break;
+        case EV_RFU1:
+            ESP_LOGI(TAG, "EV_RFU1");
+            break;
+        case EV_JOIN_FAILED:
+            ESP_LOGI(TAG, "EV_JOIN_FAILED");
+            break;
+        case EV_REJOIN_FAILED:
+            ESP_LOGI(TAG, "EV_REJOIN_FAILED");
+            break;
+            break;
+        case EV_TXCOMPLETE:
+            ESP_LOGI(TAG, "EV_TXCOMPLETE (includes waiting for RX windows)");
+            if (LMIC.txrxFlags & TXRX_ACK)
+              ESP_LOGI(TAG, "Received ack");
+            if (LMIC.dataLen) {
+              ESP_LOGI(TAG, "Received %i bytes of payload", LMIC.dataLen);
+            }
+            break;
+        case EV_LOST_TSYNC:
+            ESP_LOGI(TAG, "EV_LOST_TSYNC");
+            break;
+        case EV_RESET:
+            ESP_LOGI(TAG, "EV_RESET");
+            break;
+        case EV_RXCOMPLETE:
+            // data received in ping slot
+            ESP_LOGI(TAG, "EV_RXCOMPLETE");
+            break;
+        case EV_LINK_DEAD:
+            ESP_LOGI(TAG, "EV_LINK_DEAD");
+            break;
+        case EV_LINK_ALIVE:
+            ESP_LOGI(TAG, "EV_LINK_ALIVE");
+            break;
+        case EV_SCAN_FOUND:
+            ESP_LOGI(TAG, "EV_SCAN_FOUND");
+            break;
+        case EV_TXSTART:
+            ESP_LOGI(TAG, "EV_TXSTART");
+            break;
+        case EV_TXDONE:
+            ESP_LOGI(TAG, "EV_TXDONE");
+            break;
+        case EV_DATARATE:
+            ESP_LOGI(TAG, "EV_DATARATE");
+            break;
+        case EV_START_SCAN:
+            ESP_LOGI(TAG, "EV_START_SCAN");
+            break;
+        case EV_ADR_BACKOFF:
+            ESP_LOGI(TAG, "EV_ADR_BACKOFF");
+            break;
+
+         default:
+            ESP_LOGI(TAG, "Unknown event: %s", ev);
+            break;
     }
 }
 
-void messageReceived(const uint8_t* message, size_t length, ttn_port_t port)
-{
-    printf("Message of %d bytes received on port %d:", length, port);
-    for (int i = 0; i < length; i++)
-        printf(" %02x", message[i]);
-    printf("\n");
+void send_packet(){
+    // Prepare upstream data transmission at the next possible time.
+    uint8_t mydata[] = "Hello, world!";
+    LMIC_setTxData2(1, mydata, sizeof(mydata)-1, 0);
+    ESP_LOGI(TAG, "Packet queued");
+
+    last_packet = esp_timer_get_time()/1000;
 }
 
-void app_main(void)
-{
-    esp_err_t err;
-    // Initialize the GPIO ISR handler service
-    err = gpio_install_isr_service(ESP_INTR_FLAG_IRAM);
-    ESP_ERROR_CHECK(err);
-    
-    // Initialize the NVS (non-volatile storage) for saving and restoring the keys
-    err = nvs_flash_init();
-    ESP_ERROR_CHECK(err);
+void main_task(void *args) {
+    // Let LMIC handle background tasks
+    os_runstep();
 
-    // Initialize SPI bus
-    spi_bus_config_t spi_bus_config = {
-        .miso_io_num = TTN_PIN_SPI_MISO,
-        .mosi_io_num = TTN_PIN_SPI_MOSI,
-        .sclk_io_num = TTN_PIN_SPI_SCLK,
-        .quadwp_io_num = -1,
-        .quadhd_io_num = -1
-    }; 
-    err = spi_bus_initialize(TTN_SPI_HOST, &spi_bus_config, TTN_SPI_DMA_CHAN);
-    ESP_ERROR_CHECK(err);
+    // If TX_INTERVAL passed, *and* our previous packet is not still
+    // pending (which can happen due to duty cycle limitations), send
+    // the next packet.
+    if (esp_timer_get_time()/1000 - last_packet > TX_INTERVAL && !(LMIC.opmode & (OP_JOINING|OP_TXRXPEND)))
+        send_packet();
+}
 
-    // Initialize TTN
-    ttn_init();
+void app_main() {
+    ESP_LOGI(TAG, "Starting");
 
-    // Configure the SX127x pins
-    ttn_configure_pins(TTN_SPI_HOST, TTN_PIN_NSS, TTN_PIN_RXTX, TTN_PIN_RST, TTN_PIN_DIO0, TTN_PIN_DIO1);
+    // LMIC init
+    os_init(NULL);
+    LMIC_reset();
 
-    // The below line can be commented after the first run as the data is saved in NVS
-    ttn_provision(devEui, appEui, appKey);
+    // Enable this to increase the receive window size, to compensate
+    // for an inaccurate clock.  // This compensate for +/- 10% clock
+    // error, a lower value will likely be more appropriate.
+    //LMIC_setClockError(MAX_CLOCK_ERROR * 10 / 100);
 
-    // Register callback for received messages
-    ttn_on_message(messageReceived);
+    // Start join
+    LMIC_startJoining();
 
-    // ttn_set_adr_enabled(false);
-    // ttn_set_data_rate(TTN_DR_US915_SF7);
-    // ttn_set_max_tx_pow(14);
+    // Make sure the first packet is scheduled ASAP after join completes
+    last_packet = esp_timer_get_time()/1000 - TX_INTERVAL;
 
-    printf("Joining...\n");
-    if (ttn_join())
-    {
-        printf("Joined.\n");
-        xTaskCreate(sendMessages, "send_messages", 1024 * 4, (void* )0, 3, NULL);
-    }
-    else
-    {
-        printf("Join failed. Goodbye\n");
-    }
+    // Optionally wait for join to complete (uncomment this is you want
+    // to run the loop while joining).
+    while ((LMIC.opmode & (OP_JOINING)))
+        os_runstep();
+
+    xTaskCreate(main_task, "main_task", 4096, NULL, 6, NULL);
+
 }
