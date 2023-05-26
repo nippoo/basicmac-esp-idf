@@ -1,13 +1,8 @@
-/*******************************************************************************
- * Copyright (c) 2014-2015 IBM Corporation.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
- *
- * Contributors:
- *    IBM Zurich Research Lab - initial API, implementation and documentation
- *******************************************************************************/
+// Copyright (C) 2016-2019 Semtech (International) AG. All rights reserved.
+// Copyright (C) 2014-2016 IBM Corporation. All rights reserved.
+//
+// This file is subject to the terms and conditions defined in file 'LICENSE',
+// which is part of this source code package.
 
 #ifndef _lorabase_h_
 #define _lorabase_h_
@@ -15,10 +10,6 @@
 #ifdef __cplusplus
 extern "C"{
 #endif
-
-// ================================================================================
-// BEG: Keep in sync with lorabase.hpp
-//
 
 enum _cr_t { CR_4_5=0, CR_4_6, CR_4_7, CR_4_8 };
 enum _sf_t { FSK=0, SF7, SF8, SF9, SF10, SF11, SF12, SFrfu };
@@ -29,21 +20,29 @@ typedef u1_t bw_t;
 typedef u1_t dr_t;
 // Radio parameter set (encodes SF/BW/CR/IH/NOCRC)
 typedef u2_t rps_t;
-TYPEDEF_xref2rps_t;
+typedef u2_t drmap_t;
+typedef s4_t freq_t;
+typedef s1_t eirp_t;
 
+enum { ILLEGAL_DR  = 0xFF };
 enum { ILLEGAL_RPS = 0xFF };
-enum { DR_PAGE_EU868 = 0x00 };
-enum { DR_PAGE_US915 = 0x10 };
+enum { ILLEGAL_MAS = 0x00 };
+// DR 15 is used in the LinkADRReq to indicate "no DR changes", so it
+// will never be allocated as a standard DR. So it is used here for a
+// custom DR. By using 15, rather than 0xFF or similar, it can be used
+// in per-channel drmap as normal.
+enum { CUSTOM_DR = 0xF };
 
 // Global maximum frame length
-enum { STD_PREAMBLE_LEN  =  8 };
-enum { MAX_LEN_FRAME     = 64 };
-enum { LEN_DEVNONCE      =  2 };
-enum { LEN_ARTNONCE      =  3 };
-enum { LEN_NETID         =  3 };
-enum { DELAY_JACC1       =  5 }; // in secs
-enum { DELAY_DNW1        =  1 }; // in secs down window #1
-enum { DELAY_EXTDNW2     =  1 }; // in secs
+enum { BCN_PREAMBLE_LEN  = 10 };  // length in symbols - actual time depends on DR
+enum { STD_PREAMBLE_LEN  =  8 };  //  -ditto-
+enum { MAX_LEN_FRAME     =255 };  // in bytes
+enum { LEN_DEVNONCE      =  2 };  //   -ditto-
+enum { LEN_JOINNONCE     =  3 };  //   -ditto-
+enum { LEN_NETID         =  3 };  //   -ditto-
+enum { DELAY_JACC1       =  5 };  // in secs
+enum { DELAY_DNW1        =  1 };  // in secs down window #1
+enum { DELAY_EXTDNW2     =  1 };  // in secs
 enum { DELAY_JACC2       =  DELAY_JACC1+(int)DELAY_EXTDNW2 }; // in secs
 enum { DELAY_DNW2        =  DELAY_DNW1 +(int)DELAY_EXTDNW2 }; // in secs down window #1
 enum { BCN_INTV_exp      = 7 };
@@ -58,102 +57,22 @@ enum { BCN_RESERVE_us    = 2120000 };
 enum { BCN_GUARD_us      = 3000000 };
 enum { BCN_SLOT_SPAN_us  =   30000 };
 
-#if defined(CFG_eu868) // ==============================================
-
-enum _dr_eu868_t { DR_SF12=0, DR_SF11, DR_SF10, DR_SF9, DR_SF8, DR_SF7, DR_SF7B, DR_FSK, DR_NONE };
-enum { DR_DFLTMIN = DR_SF7 };
-enum { DR_PAGE = DR_PAGE_EU868 };
-
-// Default frequency plan for EU 868MHz ISM band
-// Bands:
-//  g1 :   1%  14dBm
-//  g2 : 0.1%  14dBm
-//  g3 :  10%  27dBm
-//                 freq             band     datarates
-enum { EU868_F1 = 868100000,      // g1   SF7-12
-       EU868_F2 = 868300000,      // g1   SF7-12 FSK SF7/250
-       EU868_F3 = 868500000,      // g1   SF7-12
-       EU868_F4 = 868850000,      // g2   SF7-12
-       EU868_F5 = 869050000,      // g2   SF7-12
-       EU868_F6 = 869525000,      // g3   SF7-12
-       EU868_J4 = 864100000,      // g2   SF7-12  used during join
-       EU868_J5 = 864300000,      // g2   SF7-12   ditto
-       EU868_J6 = 864500000,      // g2   SF7-12   ditto
-};
-enum { EU868_FREQ_MIN = 863000000,
-       EU868_FREQ_MAX = 870000000 };
-
-enum { CHNL_PING         = 5 };
-enum { FREQ_PING         = EU868_F6 };  // default ping freq
-enum { DR_PING           = DR_SF9 };       // default ping DR
-enum { CHNL_DNW2         = 5 };
-enum { FREQ_DNW2         = EU868_F6 };
-enum { DR_DNW2           = DR_SF12 };
-enum { CHNL_BCN          = 5 };
-enum { FREQ_BCN          = EU868_F6 };
-enum { DR_BCN            = DR_SF9 };
-enum { AIRTIME_BCN       = 144384 };  // micros
-
+// Default ADR back-off parameters
+// Actually region-specific, but identical for all known regions.
 enum {
-    // Beacon frame format EU SF9
-    OFF_BCN_NETID    = 0,
-    OFF_BCN_TIME     = 3,
-    OFF_BCN_CRC1     = 7,
-    OFF_BCN_INFO     = 8,
-    OFF_BCN_LAT      = 9,
-    OFF_BCN_LON      = 12,
-    OFF_BCN_CRC2     = 15,
-    LEN_BCN          = 17
+    ADR_ACK_LIMIT        = 64,
+    ADR_ACK_DELAY        = 32,
 };
 
-#elif defined(CFG_us915)  // =========================================
+// Note: Python simul needs macros here since MAX_DYN_CHNLS is used as array size
+#define MIN_DYN_CHNLS  3
+#define MAX_DYN_CHNLS 16
 
-enum _dr_us915_t { DR_SF10=0, DR_SF9, DR_SF8, DR_SF7, DR_SF8C, DR_NONE,
-                   // Devices behind a router:
-                   DR_SF12CR=8, DR_SF11CR, DR_SF10CR, DR_SF9CR, DR_SF8CR, DR_SF7CR };
-enum { DR_DFLTMIN = DR_SF8C };
-enum { DR_PAGE = DR_PAGE_US915 };
-
-// Default frequency plan for US 915MHz
-enum { US915_125kHz_UPFBASE = 902300000,
-       US915_125kHz_UPFSTEP =    200000,
-       US915_500kHz_UPFBASE = 903000000,
-       US915_500kHz_UPFSTEP =   1600000,
-       US915_500kHz_DNFBASE = 923300000,
-       US915_500kHz_DNFSTEP =    600000
-};
-enum { US915_FREQ_MIN = 902000000,
-       US915_FREQ_MAX = 928000000 };
-
-enum { CHNL_PING         = 0 }; // used only for default init of state (follows beacon - rotating)
-enum { FREQ_PING         = US915_500kHz_DNFBASE + CHNL_PING*US915_500kHz_DNFSTEP };  // default ping freq
-enum { DR_PING           = DR_SF10CR };       // default ping DR
-enum { CHNL_DNW2         = 0 };
-enum { FREQ_DNW2         = US915_500kHz_DNFBASE + CHNL_DNW2*US915_500kHz_DNFSTEP };
-enum { DR_DNW2           = DR_SF12CR };
-enum { CHNL_BCN          = 0 }; // used only for default init of state (rotating beacon scheme)
-enum { DR_BCN            = DR_SF10CR };
-enum { AIRTIME_BCN       = 72192 };  // micros
-
-enum {
-    // Beacon frame format US SF10
-    OFF_BCN_NETID    = 0,
-    OFF_BCN_TIME     = 3,
-    OFF_BCN_CRC1     = 7,
-    OFF_BCN_INFO     = 9,
-    OFF_BCN_LAT      = 10,
-    OFF_BCN_LON      = 13,
-    OFF_BCN_RFU1     = 16,
-    OFF_BCN_CRC2     = 17,
-    LEN_BCN          = 19
-};
-
-#endif // ===================================================
 
 enum {
     // Join Request frame format
     OFF_JR_HDR      = 0,
-    OFF_JR_ARTEUI   = 1,
+    OFF_JR_JOINEUI  = 1,
     OFF_JR_DEVEUI   = 9,
     OFF_JR_DEVNONCE = 17,
     OFF_JR_MIC      = 19,
@@ -162,7 +81,7 @@ enum {
 enum {
     // Join Accept frame format
     OFF_JA_HDR      = 0,
-    OFF_JA_ARTNONCE = 1,
+    OFF_JA_JOINNONCE= 1,
     OFF_JA_NETID    = 4,
     OFF_JA_DEVADDR  = 7,
     OFF_JA_RFU      = 11,
@@ -171,6 +90,12 @@ enum {
     OFF_CFLIST      = 13,
     LEN_JA          = 17,
     LEN_JAEXT       = 17+16
+};
+enum {
+    // Bitfields in DLsettings octet (OFF_JA_DLSET)
+    JA_DLS_OPTNEG   = 0x80,
+    JA_DLS_RX1DROFF = 0x70,
+    JA_DLS_RX2DR    = 0x0F,
 };
 enum {
     // Data frame format
@@ -207,7 +132,7 @@ enum {
     FCT_ADREN  = 0x80,
     FCT_ADRARQ = 0x40,
     FCT_ACK    = 0x20,
-    FCT_MORE   = 0x10,   // also in DN direction: Class B indicator
+    FCT_MORE   = 0x10,   // also in UP direction: Class B indicator
     FCT_OPTLEN = 0x0F,
 };
 enum {
@@ -219,33 +144,74 @@ enum {
     NWKID_BITS = 7
 };
 
+// New identifiers for MAC commands (in line with standard)
+enum {
+    MC_Reset         =  1, // Conf/Ind
+    MC_LinkCheck     =  2, // Req/Ans
+    MC_LinkADR       =  3, // Req/Ans
+    MC_DutyCycle     =  4, // Req/Ans
+    MC_RXParamSetup  =  5, // Req/Ans
+    MC_DevStatus     =  6, // Req/Ans
+    MC_NewChannel    =  7, // Req/Ans
+    MC_RXTimingSetup =  8, // Req/Ans
+    MC_TXParamSetup  =  9, // Req/Ans
+    MC_DlChannel     = 10, // Req/Ans
+    MC_Rekey         = 11, // Ind/Conf
+    MC_ADRParamSetup = 12, // Req/Ans
+    MC_DeviceTime    = 13, // Req/Ans
+    MC_ForcRejoin    = 14, // Req
+    MC_RejoinParam   = 15, // Req/Ans
+    MC_PingSlotInfo  = 16, // Req/Ans
+    MC_PingSlotChnl  = 17, // Req/Ans
+    MC_BeaconTiming  = 18, // Req/Ans
+    MC_BeaconFreq    = 19, // Req/Ans
+    MC_DeviceMode    = 32, // Ind/Conf
+};
+    
 // MAC uplink commands   downwlink too
 enum {
-    // Class A
-    MCMD_LCHK_REQ = 0x02, // -  link check request : -
-    MCMD_LADR_ANS = 0x03, // -  link ADR answer    : u1:7-3:RFU, 3/2/1: pow/DR/Ch ACK
-    MCMD_DCAP_ANS = 0x04, // -  duty cycle answer  : -
-    MCMD_DN2P_ANS = 0x05, // -  2nd DN slot status : u1:7-2:RFU  1/0:datarate/channel ack
-    MCMD_DEVS_ANS = 0x06, // -  device status ans  : u1:battery 0,1-254,255=?, u1:7-6:RFU,5-0:margin(-32..31)
-    MCMD_SNCH_ANS = 0x07, // -  set new channel    : u1: 7-2=RFU, 1/0:DR/freq ACK
+    // Class A               1=1.1, - 1.0.2
+    MCMD_LCHK_REQ = 0x02, // - link check request : -
+    MCMD_LADR_ANS = 0x03, // - link ADR answer    : u1:7-3:RFU, 3/2/1: pow/DR/Ch ACK
+    MCMD_DCAP_ANS = 0x04, // - duty cycle answer  : -
+    MCMD_DN2P_ANS = 0x05, // - 2nd DN slot status : u1:7-2:RFU  2/1/0:rx1off,rx2dr/channel ack
+    MCMD_DEVS_ANS = 0x06, // - device status ans  : u1:battery 0,1-254,255=?, u1:7-6:RFU,5-0:margin(-32..31)
+    MCMD_SNCH_ANS = 0x07, // - ack new channel    : u1: 7-2=RFU, 1/0:DR/freq ACK
+    MCMD_RXTM_ANS = 0x08, // - ack RX delay       : -
+    MCMD_DNFQ_ANS = 0x0A, // - ack DN freq        : u1: 7-2=RFU, 1/0:Freq/Chnl ACK
+    MCMD_RKEY_IND = 0x0B, // - rekey indication   : u1: version, u1: nonce, u1: opt1, [n opts...]
+    MCMD_ADRP_ANS = 0x0C, // - adr params         : -
+    MCMD_TIME_REQ = 0x0D, // - time request       : -
     // Class B
-    MCMD_PING_IND = 0x10, // -  pingability indic  : u1: 7=RFU, 6-4:interval, 3-0:datarate
-    MCMD_PING_ANS = 0x11, // -  ack ping freq      : u1: 7-1:RFU, 0:freq ok
-    MCMD_BCNI_REQ = 0x12, // -  next beacon start  : -
+    MCMD_PITV_REQ = 0x10, // - ping interval      : u1: 7-3=RFU, 2-0:interval
+    MCMD_PNGC_ANS = 0x11, // - ack ping freq/dr   : u1: 7-2:RFU, 1:drAck, 0:freqAck
+    MCMD_BCNI_REQ = 0x12, // - next beacon start  : -                                     -- DEPRECATED
+    MCMD_BCNF_ANS = 0x13, // - ack beacon freq    : u1: 0:ack
+    // Class C
+    MCMD_DEVMD_CONF=0x20, // 1 device mode confirm: u1: 0=A, 2=C
 };
 
 // MAC downlink commands
 enum {
     // Class A
-    MCMD_LCHK_ANS = 0x02, // link check answer  : u1:margin 0-254,255=unknown margin / u1:gwcnt
-    MCMD_LADR_REQ = 0x03, // link ADR request   : u1:DR/TXPow, u2:chmask, u1:chpage/repeat
-    MCMD_DCAP_REQ = 0x04, // duty cycle cap     : u1:255 dead [7-4]:RFU, [3-0]:cap 2^-k
-    MCMD_DN2P_SET = 0x05, // 2nd DN window param: u1:7-4:RFU/3-0:datarate, u3:freq
-    MCMD_DEVS_REQ = 0x06, // device status req  : -
-    MCMD_SNCH_REQ = 0x07, // set new channel    : u1:chidx, u3:freq, u1:DRrange
-    // Class B
-    MCMD_PING_SET = 0x11, // set ping freq      : u3: freq
-    MCMD_BCNI_ANS = 0x12, // next beacon start  : u2: delay(in TUNIT millis), u1:channel
+    MCMD_LCHK_ANS = 0x02, // - link check answer  : u1:margin 0-254,255=unknown margin / u1:gwcnt
+    MCMD_LADR_REQ = 0x03, // - link ADR request   : u1:DR/TXPow, u2:chmask, u1:chpage/repeat
+    MCMD_DCAP_REQ = 0x04, // - duty cycle cap     : u1:255 dead [7-4]:RFU, [3-0]:cap 2^-k
+    MCMD_DN2P_SET = 0x05, // - 2nd DN window param: u1:7:RFU, 6-4:rx1droff, 3-0:rx2dr, u3:freq
+    MCMD_DEVS_REQ = 0x06, // - device status req  : -
+    MCMD_SNCH_REQ = 0x07, // - set new channel    : u1:chidx, u3:freq, u1:DRrange
+    MCMD_RXTM_REQ = 0x08, // - change RX delay    : u1:0-3:delay, 4-7:RFU
+    MCMD_DNFQ_REQ = 0x0A, // - dn link freq       : u1:chnl, u3:freq
+    MCMD_RKEY_CNF = 0x0B, // - reset confirmation : u1: opt1, [n opts...]
+    MCMD_ADRP_REQ = 0x0C, // - adr params         : u1: 7-4: limit_exp, 3-0: delay_exp
+    MCMD_TIME_ANS = 0x0D, // - time answer        : u4:epoch_secs, u1:fracs
+    // Class B               -
+    MCMD_PITV_ANS = 0x10, // - ping interval ack  : -
+    MCMD_PNGC_REQ = 0x11, // - set ping freq/dr   : u3: freq, u1:7-4:RFU/3-0:datarate
+    MCMD_BCNI_ANS = 0x12, // - next beacon start  : u2: delay(in TUNIT millis), u1:channel -- DEPRECATED
+    MCMD_BCNF_REQ = 0x13, // - set beacon freq    : u3:freq
+    // Class C
+    MCMD_DEVMD_IND= 0x20, // 1 device mode        : u1: 0=A, 2=C
 };
 
 enum {
@@ -258,18 +224,35 @@ enum {
     MCMD_LADR_ANS_CHACK  = 0x01, // 0=unknown channel enabled
 };
 enum {
-    MCMD_DN2P_ANS_RFU    = 0xFC, // RFU bits
-    MCMD_DN2P_ANS_DRACK  = 0x02, // 0=unknown data rate
+    MCMD_DN2P_ANS_PEND   = 0x80, // ACK is pending
+    MCMD_DN2P_ANS_REPLY  = 0x40, // ACK has been added to foptsup (to keep ORDER!)
+    MCMD_DN2P_ANS_RFU    = 0xF8, // RFU bits
+    MCMD_DN2P_ANS_OFFACK = 0x04, // 0=unknown RX1 data rate offset
+    MCMD_DN2P_ANS_DRACK  = 0x02, // 0=unknown RX2 data rate
     MCMD_DN2P_ANS_CHACK  = 0x01, // 0=unknown channel enabled
 };
 enum {
+    MCMD_SNCH_ANS_PEND   = 0x80, // ACK is pending
     MCMD_SNCH_ANS_RFU    = 0xFC, // RFU bits
     MCMD_SNCH_ANS_DRACK  = 0x02, // 0=unknown data rate
     MCMD_SNCH_ANS_FQACK  = 0x01, // 0=rejected channel frequency
 };
 enum {
-    MCMD_PING_ANS_RFU   = 0xFE,
-    MCMD_PING_ANS_FQACK = 0x01
+    MCMD_DNFQ_ANS_PEND   = 0x80, // ACK is pending
+    MCMD_DNFQ_ANS_RFU    = 0xFC, // RFU bits
+    MCMD_DNFQ_ANS_CHACK  = 0x02, // 0=unknown channel
+    MCMD_DNFQ_ANS_FQACK  = 0x01, // 0=rejected channel frequency
+};
+enum {
+    MCMD_PNGC_ANS_PEND  = 0x80,  // ACK is pending
+    MCMD_PNGC_ANS_RFU   = 0xFC,
+    MCMD_PNGC_ANS_DRACK = 0x02,
+    MCMD_PNGC_ANS_FQACK = 0x01
+};
+enum {
+    MCMD_BCNF_ANS_PEND  = 0x80,
+    MCMD_BCNF_ANS_RFU   = 0xFE,
+    MCMD_BCNF_ANS_FQACK = 0x01
 };
 
 enum {
@@ -281,11 +264,16 @@ enum {
 
 // Bit fields byte#3 of MCMD_LADR_REQ payload
 enum {
+    MCMD_LADR_CHP_ALLON   = 0x60,  // enable all channels
+};
+enum {
+    MCMD_LADR_CHP_BLK8    = 0x50,  // special channel page enable, control blocks of 8+1
     MCMD_LADR_CHP_125ON   = 0x60,  // special channel page enable, bits applied to 64..71
     MCMD_LADR_CHP_125OFF  = 0x70,  //  ditto
     MCMD_LADR_N3RFU_MASK  = 0x80,
-    MCMD_LADR_CHPAGE_MASK = 0xF0,
+    MCMD_LADR_CHPAGE_MASK = 0x70,
     MCMD_LADR_REPEAT_MASK = 0x0F,
+    MCMD_LADR_CHPAGE_SHIFT= 4,
     MCMD_LADR_REPEAT_1    = 0x01,
     MCMD_LADR_CHPAGE_1    = 0x10
 };
@@ -295,47 +283,10 @@ enum {
     MCMD_LADR_POW_MASK   = 0x0F,
     MCMD_LADR_DR_SHIFT   = 4,
     MCMD_LADR_POW_SHIFT  = 0,
-#if defined(CFG_eu868)
-    MCMD_LADR_SF12      = DR_SF12<<4,
-    MCMD_LADR_SF11      = DR_SF11<<4,
-    MCMD_LADR_SF10      = DR_SF10<<4,
-    MCMD_LADR_SF9       = DR_SF9 <<4,
-    MCMD_LADR_SF8       = DR_SF8 <<4,
-    MCMD_LADR_SF7       = DR_SF7 <<4,
-    MCMD_LADR_SF7B      = DR_SF7B<<4,
-    MCMD_LADR_FSK       = DR_FSK <<4,
+};
 
-    MCMD_LADR_20dBm     = 0,
-    MCMD_LADR_14dBm     = 1,
-    MCMD_LADR_11dBm     = 2,
-    MCMD_LADR_8dBm      = 3,
-    MCMD_LADR_5dBm      = 4,
-    MCMD_LADR_2dBm      = 5,
-#elif defined(CFG_us915)
-    MCMD_LADR_SF10      = DR_SF10<<4,
-    MCMD_LADR_SF9       = DR_SF9 <<4,
-    MCMD_LADR_SF8       = DR_SF8 <<4,
-    MCMD_LADR_SF7       = DR_SF7 <<4,
-    MCMD_LADR_SF8C      = DR_SF8C<<4,
-    MCMD_LADR_SF12CR    = DR_SF12CR<<4,
-    MCMD_LADR_SF11CR    = DR_SF11CR<<4,
-    MCMD_LADR_SF10CR    = DR_SF10CR<<4,
-    MCMD_LADR_SF9CR     = DR_SF9CR<<4,
-    MCMD_LADR_SF8CR     = DR_SF8CR<<4,
-    MCMD_LADR_SF7CR     = DR_SF7CR<<4,
-
-    MCMD_LADR_30dBm     = 0,
-    MCMD_LADR_28dBm     = 1,
-    MCMD_LADR_26dBm     = 2,
-    MCMD_LADR_24dBm     = 3,
-    MCMD_LADR_22dBm     = 4,
-    MCMD_LADR_20dBm     = 5,
-    MCMD_LADR_18dBm     = 6,
-    MCMD_LADR_16dBm     = 7,
-    MCMD_LADR_14dBm     = 8,
-    MCMD_LADR_12dBm     = 9,
-    MCMD_LADR_10dBm     = 10
-#endif
+enum {
+    MCMD_RKEY_VERSION_1_1    = 0x01,  // LoRaWAN 1.1
 };
 
 // Device address
@@ -344,6 +295,12 @@ typedef u4_t devaddr_t;
 // RX quality (device)
 enum { RSSI_OFF=64, SNR_SCALEUP=4 };
 
+#define MAKE_LORA_RPS(sf,bw,cr,ih,nocrc) ((rps_t)((sf) | ((bw)<<3) | ((cr)<<5) | ((nocrc)?(1<<7):0) | ((ih&0xFF)<<8)))
+// FSK uses a subset of LORA fields, so just use MAKE_LORA_RPS here
+#define MAKE_FSK_RPS(nocrc) (MAKE_LORA_RPS(FSK, 0, 0, 0, nocrc))
+
+inline rps_t makeLoraRps  (sf_t sf, bw_t bw, cr_t cr, int ih, int nocrc) { return MAKE_LORA_RPS(sf, bw, cr, ih, nocrc); }
+inline rps_t makeFskRps   (int nocrc)                                    { return MAKE_FSK_RPS(nocrc); }
 inline sf_t  getSf   (rps_t params)            { return   (sf_t)(params &  0x7); }
 inline rps_t setSf   (rps_t params, sf_t sf)   { return (rps_t)((params & ~0x7) | sf); }
 inline bw_t  getBw   (rps_t params)            { return  (bw_t)((params >> 3) & 0x3); }
@@ -354,23 +311,12 @@ inline int   getNocrc(rps_t params)            { return        ((params >> 7) & 
 inline rps_t setNocrc(rps_t params, int nocrc) { return (rps_t)((params & ~0x80) | (nocrc<<7)); }
 inline int   getIh   (rps_t params)            { return        ((params >> 8) & 0xFF); }
 inline rps_t setIh   (rps_t params, int ih)    { return (rps_t)((params & ~0xFF00) | (ih<<8)); }
-inline rps_t makeRps (sf_t sf, bw_t bw, cr_t cr, int ih, int nocrc) {
-    return sf | (bw<<3) | (cr<<5) | (nocrc?(1<<7):0) | ((ih&0xFF)<<8);
-}
-#define MAKERPS(sf,bw,cr,ih,nocrc) ((rps_t)((sf) | ((bw)<<3) | ((cr)<<5) | ((nocrc)?(1<<7):0) | ((ih&0xFF)<<8)))
-// Two frames with params r1/r2 would interfere on air: same SFx + BWx
-inline int sameSfBw(rps_t r1, rps_t r2) { return ((r1^r2)&0x1F) == 0; }
+inline sf_t  isLora  (rps_t params)            { return   getSf(params) >= SF7 && getSf(params) <= SF12; }
+inline sf_t  isFsk   (rps_t params)            { return   getSf(params) == FSK; }
 
-extern CONST_TABLE(u1_t, _DR2RPS_CRC)[];
-inline rps_t updr2rps (dr_t dr) { return (rps_t)TABLE_GET_U1(_DR2RPS_CRC, dr+1); }
-inline rps_t dndr2rps (dr_t dr) { return setNocrc(updr2rps(dr),1); }
-inline int isFasterDR (dr_t dr1, dr_t dr2) { return dr1 > dr2; }
-inline int isSlowerDR (dr_t dr1, dr_t dr2) { return dr1 < dr2; }
-inline dr_t  incDR    (dr_t dr) { return TABLE_GET_U1(_DR2RPS_CRC, dr+2)==ILLEGAL_RPS ? dr : (dr_t)(dr+1); } // increase data rate
-inline dr_t  decDR    (dr_t dr) { return TABLE_GET_U1(_DR2RPS_CRC, dr  )==ILLEGAL_RPS ? dr : (dr_t)(dr-1); } // decrease data rate
-inline dr_t  assertDR (dr_t dr) { return TABLE_GET_U1(_DR2RPS_CRC, dr+1)==ILLEGAL_RPS ? DR_DFLTMIN : dr; }   // force into a valid DR
-inline bit_t validDR  (dr_t dr) { return TABLE_GET_U1(_DR2RPS_CRC, dr+1)!=ILLEGAL_RPS; } // in range
-inline dr_t  lowerDR  (dr_t dr, u1_t n) { while(n--){dr=decDR(dr);} return dr; } // decrease data rate by n steps
+// return 1 for low data rate optimize should be enabled (symbol time equal or above 16.384 ms) else 0
+// Must be enabled for: SF11/BW125, SF12/BW125, SF12/BW250
+inline int enDro (rps_t params) { return (int)getSf(params) - getBw(params) >= SF11; }
 
 //
 // BEG: Keep in sync with lorabase.hpp

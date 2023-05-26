@@ -39,9 +39,8 @@
 //  - All other functions and variables were made static
 //  - Tabs were converted to 2 spaces
 //  - An #include and #if guard was added
-//  - S_Table is now stored in PROGMEM
 
-#include "../../lmic/oslmic.h"
+#include "../lmic/oslmic.h"
 
 #if defined(USE_IDEETRON_AES)
 
@@ -53,7 +52,7 @@
 
 static unsigned char State[4][4];
 
-static CONST_TABLE(unsigned char, S_Table)[16][16] = {
+static unsigned char S_Table[16][16] = {
   {0x63,0x7C,0x77,0x7B,0xF2,0x6B,0x6F,0xC5,0x30,0x01,0x67,0x2B,0xFE,0xD7,0xAB,0x76},
   {0xCA,0x82,0xC9,0x7D,0xFA,0x59,0x47,0xF0,0xAD,0xD4,0xA2,0xAF,0x9C,0xA4,0x72,0xC0},
   {0xB7,0xFD,0x93,0x26,0x36,0x3F,0xF7,0xCC,0x34,0xA5,0xE5,0xF1,0x71,0xD8,0x31,0x15},
@@ -72,13 +71,12 @@ static CONST_TABLE(unsigned char, S_Table)[16][16] = {
   {0x8C,0xA1,0x89,0x0D,0xBF,0xE6,0x42,0x68,0x41,0x99,0x2D,0x0F,0xB0,0x54,0xBB,0x16}
 };
 
-extern "C" void lmic_aes_encrypt(unsigned char *Data, unsigned char *Key);
+void lmic_aes_encrypt(unsigned char *Data, unsigned char *Key);
 static void AES_Add_Round_Key(unsigned char *Round_Key);
 static unsigned char AES_Sub_Byte(unsigned char Byte);
 static void AES_Shift_Rows();
 static void AES_Mix_Collums();
 static void AES_Calculate_Round_Key(unsigned char Round, unsigned char *Round_Key);
-static void Send_State();
 
 /*
 *****************************************************************************************
@@ -207,7 +205,7 @@ static unsigned char AES_Sub_Byte(unsigned char Byte)
   S_Collum = (Byte & 0x0F);
 
   //Find the correct byte in the S_Table
-  S_Byte = TABLE_GET_U1_TWODIM(S_Table, S_Row, S_Collum);
+  S_Byte = S_Table[S_Row][S_Collum];
 
   return S_Byte;
 }
