@@ -456,7 +456,7 @@ static void configLoraModem (bool txcont) {
 
 static void configChannel (void) {
     // set frequency: FQ = (FRF * 32 Mhz) / (2 ^ 19)
-    u4_t frf = ((u64_t)LMIC.freq << 19) / 32000000;
+    u4_t frf = ((u8_t )LMIC.freq << 19) / 32000000;
     writeReg(RegFrfMsb, frf >> 16);
     writeReg(RegFrfMid, frf >> 8);
     writeReg(RegFrfLsb, frf >> 0);

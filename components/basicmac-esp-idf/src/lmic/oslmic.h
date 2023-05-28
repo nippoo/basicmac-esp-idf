@@ -27,8 +27,8 @@ typedef uint16_t        u2_t;
 typedef int16_t         s2_t;
 typedef uint32_t        u4_t;
 typedef int32_t         s4_t;
-typedef uint64_t        u64_t;
-typedef int64_t         s64_t;
+typedef uint64_t        u8_t ;
+typedef int64_t         s8_t;
 typedef unsigned int    uint;
 typedef const char*     str_t;
 
@@ -193,28 +193,28 @@ u1_t os_getRndU1 (void);
 #endif
 
 typedef s4_t  ostime_t;
-typedef s64_t  osxtime_t;
+typedef s8_t  osxtime_t;
 
 #define OSXTIME_MAX     INT64_MAX
 #define OSTIME_MAX_DIFF INT32_MAX
 
 #if !HAS_ostick_conv
-#define us2osticks(us)   ((ostime_t)( ((s64_t)(us) * OSTICKS_PER_SEC) / 1000000))
-#define ms2osticks(ms)   ((ostime_t)( ((s64_t)(ms) * OSTICKS_PER_SEC)    / 1000))
-#define sec2osticks(sec) ((ostime_t)( (s64_t)(sec) * OSTICKS_PER_SEC))
+#define us2osticks(us)   ((ostime_t)( ((s8_t)(us) * OSTICKS_PER_SEC) / 1000000))
+#define ms2osticks(ms)   ((ostime_t)( ((s8_t)(ms) * OSTICKS_PER_SEC)    / 1000))
+#define sec2osticks(sec) ((ostime_t)( (s8_t)(sec) * OSTICKS_PER_SEC))
 #define osticks2sec(os)  ((s4_t)(((os)               ) / OSTICKS_PER_SEC))
-#define osticks2ms(os)   ((s4_t)(((os)*(s64_t)1000    ) / OSTICKS_PER_SEC))
-#define osticks2us(os)   ((s4_t)(((os)*(s64_t)1000000 ) / OSTICKS_PER_SEC))
+#define osticks2ms(os)   ((s4_t)(((os)*(s8_t)1000    ) / OSTICKS_PER_SEC))
+#define osticks2us(os)   ((s4_t)(((os)*(s8_t)1000000 ) / OSTICKS_PER_SEC))
 // Special versions
-#define us2osticksCeil(us)  ((ostime_t)( ((s64_t)(us) * OSTICKS_PER_SEC + 999999) / 1000000))
-#define us2osticksRound(us) ((ostime_t)( ((s64_t)(us) * OSTICKS_PER_SEC + 500000) / 1000000))
-#define ms2osticksCeil(ms)  ((ostime_t)( ((s64_t)(ms) * OSTICKS_PER_SEC + 999) / 1000))
-#define ms2osticksRound(ms) ((ostime_t)( ((s64_t)(ms) * OSTICKS_PER_SEC + 500) / 1000))
+#define us2osticksCeil(us)  ((ostime_t)( ((s8_t)(us) * OSTICKS_PER_SEC + 999999) / 1000000))
+#define us2osticksRound(us) ((ostime_t)( ((s8_t)(us) * OSTICKS_PER_SEC + 500000) / 1000000))
+#define ms2osticksCeil(ms)  ((ostime_t)( ((s8_t)(ms) * OSTICKS_PER_SEC + 999) / 1000))
+#define ms2osticksRound(ms) ((ostime_t)( ((s8_t)(ms) * OSTICKS_PER_SEC + 500) / 1000))
 #define osticks2secCeil(os) ((s4_t)(((os) + (OSTICKS_PER_SEC - 1)) / OSTICKS_PER_SEC))
 // Extended versions
-#define us2osxticks(us)   ((osxtime_t)( ((s64_t)(us) * OSTICKS_PER_SEC) / 1000000))
-#define ms2osxticks(ms)   ((osxtime_t)( ((s64_t)(ms) * OSTICKS_PER_SEC)    / 1000))
-#define sec2osxticks(sec) ((osxtime_t)( (s64_t)(sec) * OSTICKS_PER_SEC))
+#define us2osxticks(us)   ((osxtime_t)( ((s8_t)(us) * OSTICKS_PER_SEC) / 1000000))
+#define ms2osxticks(ms)   ((osxtime_t)( ((s8_t)(ms) * OSTICKS_PER_SEC)    / 1000))
+#define sec2osxticks(sec) ((osxtime_t)( (s8_t)(sec) * OSTICKS_PER_SEC))
 #endif
 
 struct osjob_t; // fwd decl

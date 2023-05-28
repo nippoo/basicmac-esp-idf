@@ -306,7 +306,7 @@ u4_t hal_ticks () {
   return (u4_t)val;
 }
 
-u64_t hal_xticks (void) {
+u8_t  hal_xticks (void) {
     // TODO
     return hal_ticks();
 }

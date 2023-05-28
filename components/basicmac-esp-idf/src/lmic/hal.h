@@ -120,7 +120,7 @@ u4_t hal_ticks (void);
 /*
  * return 64-bit system time in ticks.
  */
-u64_t hal_xticks (void);
+u8_t  hal_xticks (void);
 
 /*
  * return subticks (1/1024th tick)
