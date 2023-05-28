@@ -20,7 +20,6 @@
 
 #include "freertos/task.h"
 
-
 static const char* TAG = "ESP";
 
 // This EUI must be in little-endian format, so least-significant-byte
@@ -51,7 +50,10 @@ u1_t os_getRegion (void) { return LMIC_regionCode(0); }
 const unsigned TX_INTERVAL = 60000;
 
 // Timestamp of last packet sent
-uint32_t last_packet = 0;
+int64_t last_packet = 0;
+
+    uint8_t mydata[] = "Hello, world!";
+
 
 const lmic_pinmap lmic_pins = {
     // NSS input pin for SPI communication (required)
@@ -180,26 +182,6 @@ void onLmicEvent (ev_t ev) {
     }
 }
 
-void send_packet(){
-    // Prepare upstream data transmission at the next possible time.
-    uint8_t mydata[] = "Hello, world!";
-    LMIC_setTxData2(1, mydata, sizeof(mydata)-1, 0);
-    ESP_LOGI(TAG, "Packet queued");
-
-    last_packet = esp_timer_get_time()/1000;
-}
-
-void main_task(void *args) {
-    // Let LMIC handle background tasks
-    os_runstep();
-
-    // If TX_INTERVAL passed, *and* our previous packet is not still
-    // pending (which can happen due to duty cycle limitations), send
-    // the next packet.
-    if (esp_timer_get_time()/1000 - last_packet > TX_INTERVAL && !(LMIC.opmode & (OP_JOINING|OP_TXRXPEND)))
-        send_packet();
-}
-
 void app_main() {
     ESP_LOGI(TAG, "Starting");
 
@@ -210,7 +192,7 @@ void app_main() {
     // Enable this to increase the receive window size, to compensate
     // for an inaccurate clock.  // This compensate for +/- 10% clock
     // error, a lower value will likely be more appropriate.
-    //LMIC_setClockError(MAX_CLOCK_ERROR * 10 / 100);
+    // LMIC_setClockError(MAX_CLOCK_ERROR * 10 / 100);
 
     // Start join
     LMIC_startJoining();
@@ -223,6 +205,25 @@ void app_main() {
     while ((LMIC.opmode & (OP_JOINING)))
         os_runstep();
 
-    xTaskCreate(main_task, "main_task", 4096, NULL, 6, NULL);
+    while(1)
+    {
+        // Let LMIC handle background tasks
+        os_runstep();
+
+        // If TX_INTERVAL passed, *and* our previous packet is not still
+        // pending (which can happen due to duty cycle limitations), send
+        // the next packet.
+
+        int64_t t1 = esp_timer_get_time()/1000 - last_packet;
+
+        if (t1 > TX_INTERVAL && !(LMIC.opmode & (OP_JOINING|OP_TXRXPEND)))
+        {
+            ESP_LOGI(TAG, "Sending packet");
+            LMIC_setTxData2(1, mydata, sizeof(mydata)-1, 0);
+            ESP_LOGI(TAG, "Packet queued");
+
+            last_packet = esp_timer_get_time()/1000;
+        }
+    }
 
 }

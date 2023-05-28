@@ -43,8 +43,11 @@
 #include "freertos/task.h"
 #include "driver/gpio.h"
 #include "driver/spi_master.h"
-#include "driver/timer.h"
+#include "driver/gptimer.h"
 #include "esp_log.h"
+#include "esp_timer.h"
+
+
 
 #define LMIC_SPI SPI2_HOST
 #define TAG "lmic"
@@ -109,7 +112,7 @@ static void hal_io_init () {
 
     for (i = 0; i < NUM_DIO; ++i) {
         if (lmic_pins.dio[i] < LMIC_UNUSED_PIN)
-        gpio_set_direction(lmic_pins.dio[i], GPIO_MODE_OUTPUT);
+        gpio_set_direction(lmic_pins.dio[i], GPIO_MODE_INPUT);
     }
 }
 
@@ -176,9 +179,9 @@ void hal_pin_busy_wait (void) {
         // that was.
         vTaskDelay(MAX_BUSY_TIME_MS / portTICK_PERIOD_MS);
     } else {
-        // unsigned long start = micros(); FIXME
+        uint64_t start = esp_timer_get_time()/1000;
         vTaskDelay(MAX_BUSY_TIME_MS / portTICK_PERIOD_MS);
-        // while((micros() - start) < MAX_BUSY_TIME_MS && gpio_get_level(lmic_pins.busy)) /* wait */;
+        while((esp_timer_get_time()/1000 - start) < MAX_BUSY_TIME_MS && gpio_get_level(lmic_pins.busy)) /* wait */;
     }
 }
 
@@ -211,10 +214,10 @@ static void hal_spi_init () {
 
   // init device
     spi_device_interface_config_t devcfg = {
-        .clock_speed_hz = 1000000,
+        .clock_speed_hz = 8000000,
         .mode = 0,
         .spics_io_num = -1,
-        .queue_size = 7,
+        .queue_size = 1,
     };
 
     ret = spi_bus_initialize(LMIC_SPI, &buscfg, 0);
@@ -245,39 +248,61 @@ u1_t hal_spi (u1_t data) {
     esp_err_t ret = spi_device_transmit(spi_handle, &t);
     assert(ret == ESP_OK);
 
+    // ESP_LOGI(TAG, "Sent %i, got %i", data, rxData);
+
     return (u1_t) rxData;
 }
 
 // -----------------------------------------------------------------------------
 // TIME
 
-static void hal_time_init () {
-  ESP_LOGI(TAG, "Starting initialisation of timer");
-  int timer_group = TIMER_GROUP_0;
-  int timer_idx = TIMER_1;
-  timer_config_t config;
-  config.alarm_en = 0;
-  config.auto_reload = 0;
-  config.counter_dir = TIMER_COUNT_UP;
-  config.divider = 1600;
-  config.intr_type = 0;
-  config.counter_en = TIMER_PAUSE;
-  config.clk_src = TIMER_SRC_CLK_APB;
-  /*Configure timer*/
-  timer_init(timer_group, timer_idx, &config);
-  /*Stop timer counter*/
-  timer_pause(timer_group, timer_idx);
-  /*Load counter value */
-  timer_set_counter_value(timer_group, timer_idx, 0x0);
-  /*Start timer counter*/
-  timer_start(timer_group, timer_idx);
+gptimer_handle_t gptimer = NULL;
 
-  ESP_LOGI(TAG, "Finished initalisation of timer");
+static unsigned long IRAM_ATTR micros()
+{
+    return (unsigned long)(esp_timer_get_time());
+}
+
+static void IRAM_ATTR delay_micros(uint32_t us)
+{
+    uint32_t m = micros();
+    if (us)
+    {
+        uint32_t e = (m + us);
+        if (m > e)
+        { //overflow
+            while (micros() > e)
+            {
+                __asm__ __volatile__ ("nop");
+            }
+        }
+        while (micros() < e)
+        {
+            __asm__ __volatile__ ("nop");
+        }
+    }
+}
+
+static void hal_time_init () {
+    ESP_LOGI(TAG, "Starting timer init");
+
+    gptimer_config_t timer_config = {
+        .clk_src = GPTIMER_CLK_SRC_DEFAULT,
+        .direction = GPTIMER_COUNT_UP,
+        .resolution_hz = 50000,
+    };
+
+    ESP_ERROR_CHECK(gptimer_new_timer(&timer_config, &gptimer));
+    ESP_ERROR_CHECK(gptimer_set_raw_count(gptimer, 0x0));
+    ESP_ERROR_CHECK(gptimer_enable(gptimer));
+    ESP_ERROR_CHECK(gptimer_start(gptimer));
+
+    ESP_LOGI(TAG, "Finished timer init");
 }
 
 u4_t hal_ticks () {
   uint64_t val;
-  timer_get_counter_value(TIMER_GROUP_0, TIMER_1, &val);
+  gptimer_get_raw_count(gptimer, &val);
   return (u4_t)val;
 }
 
@@ -293,23 +318,27 @@ static s4_t delta_time(u4_t time) {
 }
 
 void hal_waitUntil (u4_t time) {
-
-    ESP_LOGI(TAG, "Wait until");
     s4_t delta = delta_time(time);
 
-    while( delta > 2000){
-        vTaskDelay(1 / portTICK_PERIOD_MS);
-        delta -= 1000;
-    } if(delta > 0){
-        vTaskDelay(delta / portTICK_PERIOD_MS);
+    while (delta > (16000 / 20)) {
+        vTaskDelay(16 / portTICK_PERIOD_MS);
+        delta -= (16000 / 20);
     }
-    ESP_LOGI(TAG, "Done waiting until");
+
+
+    delta = delta_time(time);
+
+    if (delta > 0)
+        delay_micros(delta * 20);
 }
 
 // check and rewind for target time
 u1_t hal_checkTimer (u4_t time) {
   return delta_time(time) <= 0;
 }
+
+// -----------------------------------------------------------------------------
+// IRQ
 
 static uint8_t irqlevel = 0;
 
@@ -332,6 +361,8 @@ void hal_enableIRQs () {
 }
 
 u1_t hal_sleep (u1_t type, u4_t targettime) {
+    // ESP_LOGI(TAG, "sleeping type %i until %li, current time %li", type, targettime, hal_ticks());
+    
     // Actual sleeping not implemented, but jobs are only run when this
     // function returns 0, so make sure we only do that when the
     // targettime is close. When asked to sleep forever (until woken up

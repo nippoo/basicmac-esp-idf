@@ -3296,6 +3296,8 @@ void LMIC_clrTxData (void) {
 
 
 void LMIC_setTxData (void) {
+            debug_printf("got 2herekk!");
+
     ASSERT((LMIC.opmode & OP_JOINING) == 0);
     LMIC.opmode |= OP_TXDATA;
     LMIC.txCnt = 0;             // reset nbTrans counter
@@ -3305,6 +3307,8 @@ void LMIC_setTxData (void) {
 
 //
 int LMIC_setTxData2 (u1_t port, u1_t* data, u1_t dlen, u1_t confirmed) {
+        debug_printf("got 2here!");
+
     if( dlen > sizeof(LMIC.pendTxData) )
         return -2;
     if( data != (u1_t*)0 )
@@ -3312,6 +3316,9 @@ int LMIC_setTxData2 (u1_t port, u1_t* data, u1_t dlen, u1_t confirmed) {
     LMIC.pendTxConf = confirmed;
     LMIC.pendTxPort = port;
     LMIC.pendTxLen  = dlen;
+
+    debug_printf("got here!");
+
     LMIC_setTxData();
     return 0;
 }

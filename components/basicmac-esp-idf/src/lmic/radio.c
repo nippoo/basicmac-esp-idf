@@ -146,9 +146,10 @@ void os_radio (u1_t mode) {
                              getSf(LMIC.rps) - SF7 + 7, 125 << (getBw(LMIC.rps) - BW125),
                              getCr(LMIC.rps) - CR_4_5 + 5, getNocrc(LMIC.rps), getIh(LMIC.rps));
             }
-            debug_printf_continue(",freq=%.1F,rxtime=%.0F]\r\n",
+            debug_printf_continue(",freq=%.1F,rxtime=%.0F,curtime=%.0F]\r\n",
                          LMIC.freq, 6,
-                         LMIC.rxtime, 0);
+                         LMIC.rxtime, 0,
+                         os_getTime(), 0);
 #endif
             // receive frame at rxtime/now (wait for completion interrupt)
             radio_startrx(false);

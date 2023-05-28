@@ -52,7 +52,7 @@ struct lmic_pinmap {
 typedef struct lmic_pinmap lmic_pinmap;
 
 // Use this for any unused pins.
-#define LMIC_UNUSED_PIN 0xFD
+#define LMIC_UNUSED_PIN 0xfd
 
 #if defined(BRD_sx1261_radio) || defined(BRD_sx1262_radio)
 // Used for lmic_pinmap.tcxo only

@@ -692,6 +692,10 @@ static void rxfsk (bool rxcontinuous) {
 static void rxlora (bool rxcontinuous) {
     // configure radio (needs rampup time)
     ostime_t t0 = os_getTime();
+
+    debug_printf("target time %.0F]\r\n", LMIC.rxtime, 0);
+
+    debug_printf("starting rxlora at %.0F]\r\n", t0, 0);
     CommonSetup();
     SetStandby(STDBY_RC);
     SetPacketType(PACKET_TYPE_LORA);
@@ -701,12 +705,19 @@ static void rxlora (bool rxcontinuous) {
     SetSyncWordLora(0x3444);
     StopTimerOnPreamble(0);
     SetLoRaSymbNumTimeout(LMIC.rxsyms);
+
+    debug_printf("before irq params %.0F]\r\n", os_getTime(), 0);
+
     SetDioIrqParams(IRQ_RXDONE | IRQ_TIMEOUT);
+
+    debug_printf("after irq params %.0F]\r\n", os_getTime(), 0);
 
     ClearIrqStatus(IRQ_ALL);
 
     // enter frequency synthesis mode (become ready for immediate rx)
     SetFs();
+
+    debug_printf("after setfs %.0F]\r\n", os_getTime(), 0);
 
     // enable IRQs in HAL
     hal_irqmask_set(HAL_IRQMASK_DIO1);

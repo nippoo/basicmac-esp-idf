@@ -59,9 +59,14 @@
 
 // 16 μs per tick
 // LMIC requires ticks to be 15.5μs - 100 μs long
-#define US_PER_OSTICK_EXPONENT 4
-#define US_PER_OSTICK (1 << US_PER_OSTICK_EXPONENT)
-#define OSTICKS_PER_SEC (1000000 / US_PER_OSTICK)
+// #define US_PER_OSTICK_EXPONENT 4
+// #define US_PER_OSTICK (1 << US_PER_OSTICK_EXPONENT)
+// #define OSTICKS_PER_SEC (1000000 / US_PER_OSTICK)
+
+// 20 μs per tick
+#define OSTICKS_PER_SEC 50000
+
+#define RX_RAMPUP 10000
 
 // When this is defined, some debug output will be printed and
 // debug_printf(...) is available (which is a slightly non-standard
@@ -69,9 +74,9 @@
 // Without this, assertion failures are *not* printed!
 #define CFG_DEBUG
 // When this is defined, additional debug output is printed.
-//#define CFG_DEBUG_VERBOSE
+#define CFG_DEBUG_VERBOSE
 // Debug output (and assertion failures) are printed to this Stream
-#define CFG_DEBUG_STREAM Serial
+// #define CFG_DEBUG_STREAM Serial
 // Define these to add some TX or RX specific debug output (needs
 // CFG_DEBUG)
 #define DEBUG_TX
