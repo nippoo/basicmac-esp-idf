@@ -264,7 +264,7 @@
 #define FSK_RXDONE_FIXUP            us2osticks(0) // XXX
 #define PARAMP50                    0b00001000 // unused=000, reserved=0, PaRamp=1000
 
-static const u2_t LORA_RXDONE_FIXUP_125[] = {
+static const uint16_t LORA_RXDONE_FIXUP_125[] = {
     [FSK]  =     us2osticks(0),
     [SF7]  =     us2osticks(0),
     [SF8]  =  us2osticks(1648),
@@ -274,7 +274,7 @@ static const u2_t LORA_RXDONE_FIXUP_125[] = {
     [SF12] = us2osticks(31189),
 };
 
-static const u2_t LORA_RXDONE_FIXUP_500[] = {
+static const uint16_t LORA_RXDONE_FIXUP_500[] = {
     [FSK]  = us2osticks(    0),
     [SF7]  = us2osticks(    0),
     [SF8]  = us2osticks(    0),
@@ -296,7 +296,7 @@ static const u2_t LORA_RXDONE_FIXUP_500[] = {
 #define FSK_RXDONE_FIXUP            us2osticks(0) // XXX
 #define PARAMP50                    0b00011000 // unused=000, LowPnTxPllOff=1, PaRamp=1000
 
-static const u2_t LORA_RXDONE_FIXUP_125[] = {
+static const uint16_t LORA_RXDONE_FIXUP_125[] = {
     [FSK]  = us2osticksRound(    0),
     [SF7]  = us2osticksRound(  749),
     [SF8]  = us2osticksRound( 1343),
@@ -307,7 +307,7 @@ static const u2_t LORA_RXDONE_FIXUP_125[] = {
 };
 
 // Based Nucleo board regr tests rxlatency-regr
-static const u2_t LORA_RXDONE_FIXUP_500[] = {
+static const uint16_t LORA_RXDONE_FIXUP_500[] = {
     [FSK]  = us2osticksRound(   0),
     [SF7]  = us2osticksRound( 193),
     [SF8]  = us2osticksRound( 344),
@@ -329,36 +329,36 @@ static struct {
 } state;
 
 // ----------------------------------------
-static void writeReg (u1_t addr, u1_t data) {
+static void writeReg (uint8_t addr, uint8_t data) {
     hal_spi_select(1);
     hal_spi(addr | 0x80);
     hal_spi(data);
     hal_spi_select(0);
 }
 
-static u1_t readReg (u1_t addr) {
+static uint8_t readReg (uint8_t addr) {
     hal_spi_select(1);
     hal_spi(addr & 0x7F);
-    u1_t val = hal_spi(0x00);
+    uint8_t val = hal_spi(0x00);
     hal_spi_select(0);
     return val;
 }
 
 // (used by perso)
-void radio_writeBuf (u1_t addr, u1_t* buf, u1_t len) {
+void radio_writeBuf (uint8_t addr, uint8_t* buf, uint8_t len) {
     hal_spi_select(1);
     hal_spi(addr | 0x80);
-    for (u1_t i = 0; i < len; i++) {
+    for (uint8_t i = 0; i < len; i++) {
         hal_spi(buf[i]);
     }
     hal_spi_select(0);
 }
 
 // (used by  perso)
-void radio_readBuf (u1_t addr, u1_t* buf, u1_t len) {
+void radio_readBuf (uint8_t addr, uint8_t* buf, uint8_t len) {
     hal_spi_select(1);
     hal_spi(addr & 0x7F);
-    for (u1_t i = 0; i < len; i++) {
+    for (uint8_t i = 0; i < len; i++) {
         buf[i] = hal_spi(0x00);
     }
     hal_spi_select(0);
@@ -369,7 +369,7 @@ void radio_sleep (void) {
 }
 
 // set and wait for opmode (nsornin 2019-09-26)
-static void setopmode (u1_t opmode) {
+static void setopmode (uint8_t opmode) {
     writeReg(RegOpMode, opmode);
     ostime_t t0 = os_getTime();
     while (readReg(RegOpMode) != opmode) {
@@ -456,16 +456,16 @@ static void configLoraModem (bool txcont) {
 
 static void configChannel (void) {
     // set frequency: FQ = (FRF * 32 Mhz) / (2 ^ 19)
-    u4_t frf = ((u8_t )LMIC.freq << 19) / 32000000;
+    uint32_t frf = ((uint64_t )LMIC.freq << 19) / 32000000;
     writeReg(RegFrfMsb, frf >> 16);
     writeReg(RegFrfMid, frf >> 8);
     writeReg(RegFrfLsb, frf >> 0);
 }
 
-static void setRadioConsumption_ua (bool boost, u1_t pow) {
-    u4_t ua;
+static void setRadioConsumption_ua (bool boost, uint8_t pow) {
+    uint32_t ua;
 #if defined(BRD_sx1276_radio)
-    static const u2_t BOOSTPOW[19] = { /* 2-20 */
+    static const uint16_t BOOSTPOW[19] = { /* 2-20 */
         35140  >> 1,
         36770  >> 1,
         38770  >> 1,
@@ -487,7 +487,7 @@ static void setRadioConsumption_ua (bool boost, u1_t pow) {
         111360 >> 1,
     };
 
-    static const u2_t RFOPOW[16] = { /* 0-15 */
+    static const uint16_t RFOPOW[16] = { /* 0-15 */
         15910,
         16760,
         17570,
@@ -699,7 +699,7 @@ static void txfsk (bool txcont) {
         hal_irqmask_set(HAL_IRQMASK_DIO0 | HAL_IRQMASK_DIO1);
 
         // set tx timeout
-        radio_set_irq_timeout(os_getTime() + us2osticks((u4_t)(FIFOTHRESH+10)*8*1000/50));
+        radio_set_irq_timeout(os_getTime() + us2osticks((uint32_t)(FIFOTHRESH+10)*8*1000/50));
     }
 
     // enable antenna switch for TX
@@ -989,7 +989,7 @@ static void rxfsk (bool rxcontinuous) {
         // set preamble timeout
         writeReg(FSKRegRxTimeout2, (LMIC.rxsyms + 1) / 2); // (TimeoutRxPreamble * 16 * Tbit)
         // set rx timeout
-        radio_set_irq_timeout(LMIC.rxtime + us2osticks((u4_t)(2*FIFOTHRESH)*8*1000/50));
+        radio_set_irq_timeout(LMIC.rxtime + us2osticks((uint32_t)(2*FIFOTHRESH)*8*1000/50));
         // busy wait until exact rx time
         ostime_t now = os_getTime();
         if (LMIC.rxtime - now < 0) {
@@ -1159,13 +1159,13 @@ void radio_init (bool calibrate) {
 }
 
 // (run by irqjob)
-bool radio_irq_process (ostime_t irqtime, u1_t diomask) {
+bool radio_irq_process (ostime_t irqtime, uint8_t diomask) {
     (void)diomask; //unused
 
     // dispatch modem
     if (isFsk(LMIC.rps)) { // FSK modem
-        u1_t irqflags1 = readReg(FSKRegIrqFlags1);
-        u1_t irqflags2 = readReg(FSKRegIrqFlags2);
+        uint8_t irqflags1 = readReg(FSKRegIrqFlags1);
+        uint8_t irqflags2 = readReg(FSKRegIrqFlags2);
 
         if (irqflags2 & IRQ_FSK2_PACKETSENT_MASK) { // TXDONE
             BACKTRACE();
@@ -1205,7 +1205,7 @@ bool radio_irq_process (ostime_t irqtime, u1_t diomask) {
             LoadFifo();
 
             // update tx timeout
-            radio_set_irq_timeout(irqtime + us2osticks((u4_t)(FIFOTHRESH+10)*8*1000/50));
+            radio_set_irq_timeout(irqtime + us2osticks((uint32_t)(FIFOTHRESH+10)*8*1000/50));
 
             // keep waiting for FifoEmpty or PacketSent interrupt
             return false;
@@ -1217,7 +1217,7 @@ bool radio_irq_process (ostime_t irqtime, u1_t diomask) {
             UnloadFifo();
 
             // update rx timeout
-            radio_set_irq_timeout(irqtime + us2osticks((u4_t)(FIFOTHRESH+10)*8*1000/50));
+            radio_set_irq_timeout(irqtime + us2osticks((uint32_t)(FIFOTHRESH+10)*8*1000/50));
 
             // keep waiting for FifoLevel or PayloadReady interrupt
             return false;
@@ -1233,7 +1233,7 @@ bool radio_irq_process (ostime_t irqtime, u1_t diomask) {
         writeReg(FSKRegIrqFlags2, 0xFF);
 
     } else { // LORA modem
-        u1_t irqflags = readReg(LORARegIrqFlags);
+        uint8_t irqflags = readReg(LORARegIrqFlags);
 
         if (irqflags & IRQ_LORA_TXDONE_MASK) { // TXDONE
             BACKTRACE();
@@ -1273,7 +1273,7 @@ bool radio_irq_process (ostime_t irqtime, u1_t diomask) {
             radio_readBuf(RegFifo, LMIC.frame, LMIC.dataLen);
 #ifdef DEBUG_RX
             debug_printf("RX[rssi=%d,snr=%.2F,len=%d]: %.80h\r\n",
-                         LMIC.rssi - RSSI_OFF, (s4_t)(LMIC.snr * 100 / SNR_SCALEUP), 2,
+                         LMIC.rssi - RSSI_OFF, (int32_t)(LMIC.snr * 100 / SNR_SCALEUP), 2,
                          LMIC.dataLen, LMIC.frame, LMIC.dataLen);
 #endif
         } else if (irqflags & IRQ_LORA_RXTOUT_MASK) { // RXTOUT

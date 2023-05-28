@@ -18,10 +18,10 @@ void debug_str (const char* str) {
     hal_debug_str(str);
 }
 
-static int debug_itoa (char* buf, u4_t val, int base, int mindigits, int exp, int prec, char sign) {
+static int debug_itoa (char* buf, uint32_t val, int base, int mindigits, int exp, int prec, char sign) {
     char num[33], *p = num, *b = buf;
     if (sign) {
-        if ((s4_t) val < 0) {
+        if ((int32_t) val < 0) {
             val = -val;
             *b++ = '-';
         } else if (sign != '-') {
@@ -160,14 +160,14 @@ static int debug_vsnprintf(char *str, int size, const char *format, va_list arg)
                             prec = width - 1; // have debug_itoa() do the leading zero-padding for correct placement of sign
                             pad = '0';
                         }
-                        u4_t val = longint ? va_arg(arg, long) : va_arg(arg, int);
+                        uint32_t val = longint ? va_arg(arg, long) : va_arg(arg, int);
                         int len = debug_itoa(num, val, base, prec, 0, 0, sign);
                         dst += strpad(dst, end - dst, num, len, width, left, pad);
                         break;
                     }
                 case 'F': { // signed integer and exponent as fixed-point decimal
                     char num[33], pad = (zero && left == 0) ? '0' : ' ';
-                    u4_t val = va_arg(arg, u4_t);
+                    uint32_t val = va_arg(arg, uint32_t);
                     int exp = va_arg(arg, int);
                     int len = debug_itoa(num, val, 10, exp + 2, exp, (prec) ? prec : exp, (plus) ? '+' : (space) ? ' ' : '-');
                     dst += strpad(dst, end - dst, num, len, width, left, pad);

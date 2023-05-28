@@ -15,8 +15,8 @@
 static struct {
     ostime_t irqtime;
     osjob_t irqjob;
-    u1_t diomask;
-    u1_t txmode;
+    uint8_t diomask;
+    uint8_t txmode;
 } state;
 
 // stop radio, disarm interrupts, cancel jobs
@@ -89,7 +89,7 @@ static void radio_irq_func (osjob_t* j) {
 
 // called by hal exti IRQ handler
 // (all radio operations are performed on radio job!)
-void radio_irq_handler (u1_t diomask, ostime_t ticks) {
+void radio_irq_handler (uint8_t diomask, ostime_t ticks) {
     BACKTRACE();
 
     // make sure previous job has been run
@@ -104,7 +104,7 @@ void radio_irq_handler (u1_t diomask, ostime_t ticks) {
     os_setCallback(&state.irqjob, radio_irq_func);
 }
 
-void os_radio (u1_t mode) {
+void os_radio (uint8_t mode) {
     switch (mode) {
         case RADIO_STOP:
             radio_stop();

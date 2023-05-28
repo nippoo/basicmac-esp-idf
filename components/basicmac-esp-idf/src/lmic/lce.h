@@ -29,32 +29,32 @@ enum {
     LCE_SCC_ROSE = 0x42,  // reliable octet streaming engine
 };
 
-void lce_encKey0 (u1_t* buf);
-u4_t lce_micKey0 (u4_t devaddr, u4_t seqno, u1_t* pdu, int len);
-bool lce_processJoinAccept (u1_t* jacc, u1_t jacclen, u2_t devnonce);
-void lce_addMicJoinReq (u1_t* pdu, int len);
-bool lce_verifyMic (s1_t keyid, u4_t devaddr, u4_t seqno, u1_t* pdu, int len);
-void lce_addMic (s1_t keyid, u4_t devaddr, u4_t seqno, u1_t* pdu, int len);
-void lce_cipher (s1_t keyid, u4_t devaddr, u4_t seqno, int cat, u1_t* payload, int len);
+void lce_encKey0 (uint8_t* buf);
+uint32_t lce_micKey0 (uint32_t devaddr, uint32_t seqno, uint8_t* pdu, int len);
+bool lce_processJoinAccept (uint8_t* jacc, uint8_t jacclen, uint16_t devnonce);
+void lce_addMicJoinReq (uint8_t* pdu, int len);
+bool lce_verifyMic (int8_t keyid, uint32_t devaddr, uint32_t seqno, uint8_t* pdu, int len);
+void lce_addMic (int8_t keyid, uint32_t devaddr, uint32_t seqno, uint8_t* pdu, int len);
+void lce_cipher (int8_t keyid, uint32_t devaddr, uint32_t seqno, int cat, uint8_t* payload, int len);
 #if defined(CFG_lorawan11)
-void lce_loadSessionKeys (const u1_t* nwkSKey, const u1_t* nwkSKeyDn, const u1_t* appSKey);
+void lce_loadSessionKeys (const uint8_t* nwkSKey, const uint8_t* nwkSKeyDn, const uint8_t* appSKey);
 #else
-void lce_loadSessionKeys (const u1_t* nwkSKey, const u1_t* appSKey);
+void lce_loadSessionKeys (const uint8_t* nwkSKey, const uint8_t* appSKey);
 #endif
 void lce_init (void);
 
 
 typedef struct lce_ctx_mcgrp {
-    u1_t nwkSKeyDn[16]; // network session key for down-link
-    u1_t appSKey[16];   // application session key
+    uint8_t nwkSKeyDn[16]; // network session key for down-link
+    uint8_t appSKey[16];   // application session key
 } lce_ctx_mcgrp_t;
 
 typedef struct lce_ctx {
-    u1_t nwkSKey[16];   // network session key (LoRaWAN1.1: up-link only)
+    uint8_t nwkSKey[16];   // network session key (LoRaWAN1.1: up-link only)
 #if defined(CFG_lorawan11)
-    u1_t nwkSKeyDn[16]; // network session key for down-link
+    uint8_t nwkSKeyDn[16]; // network session key for down-link
 #endif
-    u1_t appSKey[16];   // application session key
+    uint8_t appSKey[16];   // application session key
     lce_ctx_mcgrp_t mcgroup[LCE_MCGRP_MAX];
 } lce_ctx_t;
 

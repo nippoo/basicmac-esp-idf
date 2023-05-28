@@ -150,7 +150,7 @@
 #define FSK_RXDONE_FIXUP        us2osticks(0) // XXX
 
 // XXX
-static const u2_t LORA_RXDONE_FIXUP_125[] = {
+static const uint16_t LORA_RXDONE_FIXUP_125[] = {
     [FSK]  =     us2osticks(0),
     [SF7]  =     us2osticks(0),
     [SF8]  =  us2osticks(1648),
@@ -160,7 +160,7 @@ static const u2_t LORA_RXDONE_FIXUP_125[] = {
     [SF12] = us2osticks(31189),
 };
 
-static const u2_t LORA_RXDONE_FIXUP_500[] = {
+static const uint16_t LORA_RXDONE_FIXUP_500[] = {
     [FSK]  = us2osticks(    0),
     [SF7]  = us2osticks(    0),
     [SF8]  = us2osticks(    0),
@@ -182,7 +182,7 @@ static void writecmd (uint8_t cmd, const uint8_t* data, uint8_t len) {
     hal_pin_busy_wait();
     state.sleeping = 0;
     hal_spi(cmd);
-    for (u1_t i = 0; i < len; i++) {
+    for (uint8_t i = 0; i < len; i++) {
         hal_spi(data[i]);
     }
     hal_spi_select(0);
@@ -226,7 +226,7 @@ static uint8_t readcmd (uint8_t cmd, uint8_t* data, uint8_t len) {
     state.sleeping = 0;
     hal_spi(cmd);
     uint8_t stat = hal_spi(0x00);
-    for (u1_t i = 0; i < len; i++) {
+    for (uint8_t i = 0; i < len; i++) {
         data[i] = hal_spi(0x00);
     }
     hal_spi_select(0);
@@ -374,7 +374,7 @@ static void SetRfFrequency (uint32_t freq) {
 }
 
 // configure modulation parameters for LoRa
-static void SetModulationParamsLora (u2_t rps) {
+static void SetModulationParamsLora (uint16_t rps) {
     uint8_t param[4];
     param[0] = getSf(rps) - SF7 + 7;    // SF (sf7 -> 7)
     param[1] = getBw(rps) - BW125 + 4;  // BW (bw125 -> 4)
@@ -398,7 +398,7 @@ static void SetModulationParamsFsk (void) {
 }
 
 // configure packet handling for LoRa
-static void SetPacketParamsLora (u2_t rps, int len, int inv) {
+static void SetPacketParamsLora (uint16_t rps, int len, int inv) {
     uint8_t param[6];
     param[0] = 0x00; // 8 symbols preamble
     param[1] = 0x08;
@@ -410,7 +410,7 @@ static void SetPacketParamsLora (u2_t rps, int len, int inv) {
 }
 
 // configure packet handling for FSK
-static void SetPacketParamsFsk (u2_t rps, int len) {
+static void SetPacketParamsFsk (uint16_t rps, int len) {
     uint8_t param[9];
     param[0] = 0x00; // TX preamble length 40 bits / 5 bytes
     param[1] = 0x28;
@@ -448,7 +448,7 @@ static uint16_t GetIrqStatus (void) {
 }
 
 // get signal quality of received packet for LoRa
-static void GetPacketStatusLora (s1_t *rssi, s1_t *snr) {
+static void GetPacketStatusLora (int8_t *rssi, int8_t *snr) {
     uint8_t buf[3];
     readcmd(CMD_GETPACKETSTATUS, buf, 3);
     *rssi = -buf[0] / 2 + RSSI_OFF;
@@ -456,7 +456,7 @@ static void GetPacketStatusLora (s1_t *rssi, s1_t *snr) {
 }
 
 // get signal quality of received packet for FSK
-static s1_t GetPacketStatusFsk (void) {
+static int8_t GetPacketStatusFsk (void) {
     uint8_t buf[3];
     readcmd(CMD_GETPACKETSTATUS, buf, 3);
     return -buf[2] / 2 + RSSI_OFF; // RssiAvg
@@ -811,13 +811,13 @@ void radio_init (bool calibrate) {
     hal_enableIRQs();
 }
 
-void radio_generate_random(u4_t *words, u1_t len) {
+void radio_generate_random(uint32_t *words, uint8_t len) {
     while (len--)
         *words++ = GetRandom ();
 }
 
 // (run by irqjob)
-bool radio_irq_process (ostime_t irqtime, u1_t diomask) {
+bool radio_irq_process (ostime_t irqtime, uint8_t diomask) {
     (void)diomask; // unused
 
     uint16_t irqflags = GetIrqStatus();
@@ -886,7 +886,7 @@ bool radio_irq_process (ostime_t irqtime, u1_t diomask) {
             LMIC.rxtime0 = LMIC.rxtime - calcAirTime(LMIC.rps, LMIC.dataLen); // beginning of frame timestamp
 #ifdef DEBUG_RX
             debug_printf("RX[rssi=%d,snr=%.2F,len=%d]: %h\r\n",
-                         LMIC.rssi - RSSI_OFF, (s4_t)(LMIC.snr * 100 / SNR_SCALEUP), 2,
+                         LMIC.rssi - RSSI_OFF, (int32_t)(LMIC.snr * 100 / SNR_SCALEUP), 2,
                          LMIC.dataLen, LMIC.frame, LMIC.dataLen);
 #endif
         } else if (irqflags & IRQ_TIMEOUT) { // TIMEOUT

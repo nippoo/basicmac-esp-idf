@@ -20,15 +20,6 @@
 // Target platform as C library
 #include <stdbool.h>
 #include <stdint.h>
-typedef uint8_t         bit_t;
-typedef uint8_t         u1_t;
-typedef int8_t          s1_t;
-typedef uint16_t        u2_t;
-typedef int16_t         s2_t;
-typedef uint32_t        u4_t;
-typedef int32_t         s4_t;
-typedef uint64_t        u8_t ;
-typedef int64_t         s8_t;
 typedef unsigned int    uint;
 typedef const char*     str_t;
 
@@ -86,10 +77,10 @@ extern "C"{
 #if defined(CFG_bootloader) && defined(CFG_bootloader_aes)
 extern uint32_t (*AESFUNC) (uint8_t mode, uint8_t* buf, uint16_t len, uint32_t* key, uint32_t* aux);
 #endif
-extern u4_t AESAUX[];
-extern u4_t AESKEY[];
-#define AESkey ((u1_t*)AESKEY)
-#define AESaux ((u1_t*)AESAUX)
+extern uint32_t AESAUX[];
+extern uint32_t AESKEY[];
+#define AESkey ((uint8_t*)AESKEY)
+#define AESaux ((uint8_t*)AESAUX)
 #define FUNC_ADDR(func) (&(func))
 
 #if defined(CFG_simul)
@@ -161,7 +152,7 @@ void os_logEv(uint8_t evcat, uint8_t evid, uint32_t evparam);
 void os_init (void* bootarg);
 void os_runstep (void);
 void os_runloop (void);
-u1_t os_getRndU1 (void);
+uint8_t os_getRndU1 (void);
 
 //================================================================================
 
@@ -192,29 +183,29 @@ u1_t os_getRndU1 (void);
 #error Illegal OSTICKS_PER_SEC - must be in range [10000:64516]. One tick must be 15.5us .. 100us long.
 #endif
 
-typedef s4_t  ostime_t;
-typedef s8_t  osxtime_t;
+typedef int32_t  ostime_t;
+typedef int64_t  osxtime_t;
 
 #define OSXTIME_MAX     INT64_MAX
 #define OSTIME_MAX_DIFF INT32_MAX
 
 #if !HAS_ostick_conv
-#define us2osticks(us)   ((ostime_t)( ((s8_t)(us) * OSTICKS_PER_SEC) / 1000000))
-#define ms2osticks(ms)   ((ostime_t)( ((s8_t)(ms) * OSTICKS_PER_SEC)    / 1000))
-#define sec2osticks(sec) ((ostime_t)( (s8_t)(sec) * OSTICKS_PER_SEC))
-#define osticks2sec(os)  ((s4_t)(((os)               ) / OSTICKS_PER_SEC))
-#define osticks2ms(os)   ((s4_t)(((os)*(s8_t)1000    ) / OSTICKS_PER_SEC))
-#define osticks2us(os)   ((s4_t)(((os)*(s8_t)1000000 ) / OSTICKS_PER_SEC))
+#define us2osticks(us)   ((ostime_t)( ((int64_t)(us) * OSTICKS_PER_SEC) / 1000000))
+#define ms2osticks(ms)   ((ostime_t)( ((int64_t)(ms) * OSTICKS_PER_SEC)    / 1000))
+#define sec2osticks(sec) ((ostime_t)( (int64_t)(sec) * OSTICKS_PER_SEC))
+#define osticks2sec(os)  ((int32_t)(((os)               ) / OSTICKS_PER_SEC))
+#define osticks2ms(os)   ((int32_t)(((os)*(int64_t)1000    ) / OSTICKS_PER_SEC))
+#define osticks2us(os)   ((int32_t)(((os)*(int64_t)1000000 ) / OSTICKS_PER_SEC))
 // Special versions
-#define us2osticksCeil(us)  ((ostime_t)( ((s8_t)(us) * OSTICKS_PER_SEC + 999999) / 1000000))
-#define us2osticksRound(us) ((ostime_t)( ((s8_t)(us) * OSTICKS_PER_SEC + 500000) / 1000000))
-#define ms2osticksCeil(ms)  ((ostime_t)( ((s8_t)(ms) * OSTICKS_PER_SEC + 999) / 1000))
-#define ms2osticksRound(ms) ((ostime_t)( ((s8_t)(ms) * OSTICKS_PER_SEC + 500) / 1000))
-#define osticks2secCeil(os) ((s4_t)(((os) + (OSTICKS_PER_SEC - 1)) / OSTICKS_PER_SEC))
+#define us2osticksCeil(us)  ((ostime_t)( ((int64_t)(us) * OSTICKS_PER_SEC + 999999) / 1000000))
+#define us2osticksRound(us) ((ostime_t)( ((int64_t)(us) * OSTICKS_PER_SEC + 500000) / 1000000))
+#define ms2osticksCeil(ms)  ((ostime_t)( ((int64_t)(ms) * OSTICKS_PER_SEC + 999) / 1000))
+#define ms2osticksRound(ms) ((ostime_t)( ((int64_t)(ms) * OSTICKS_PER_SEC + 500) / 1000))
+#define osticks2secCeil(os) ((int32_t)(((os) + (OSTICKS_PER_SEC - 1)) / OSTICKS_PER_SEC))
 // Extended versions
-#define us2osxticks(us)   ((osxtime_t)( ((s8_t)(us) * OSTICKS_PER_SEC) / 1000000))
-#define ms2osxticks(ms)   ((osxtime_t)( ((s8_t)(ms) * OSTICKS_PER_SEC)    / 1000))
-#define sec2osxticks(sec) ((osxtime_t)( (s8_t)(sec) * OSTICKS_PER_SEC))
+#define us2osxticks(us)   ((osxtime_t)( ((int64_t)(us) * OSTICKS_PER_SEC) / 1000000))
+#define ms2osxticks(ms)   ((osxtime_t)( ((int64_t)(ms) * OSTICKS_PER_SEC)    / 1000))
+#define sec2osxticks(sec) ((osxtime_t)( (int64_t)(sec) * OSTICKS_PER_SEC))
 #endif
 
 struct osjob_t; // fwd decl
@@ -243,19 +234,19 @@ struct osxjob_t {
 #ifndef HAS_os_calls
 
 #ifndef os_getNwkKey
-void os_getNwkKey (u1_t* buf);
+void os_getNwkKey (uint8_t* buf);
 #endif
 #ifndef os_getAppKey
-void os_getAppKey (u1_t* buf);
+void os_getAppKey (uint8_t* buf);
 #endif
 #ifndef os_getJoinEui
-void os_getJoinEui (u1_t* buf);
+void os_getJoinEui (uint8_t* buf);
 #endif
 #ifndef os_getDevEui
-void os_getDevEui (u1_t* buf);
+void os_getDevEui (uint8_t* buf);
 #endif
 #ifndef os_getRegion
-u1_t os_getRegion (void);
+uint8_t os_getRegion (void);
 #endif
 #ifndef os_setTimedCallbackEx
 enum {
@@ -287,89 +278,89 @@ osxtime_t os_time2XTime (ostime_t t, osxtime_t context);
 uint os_getTimeSecs (void);
 #endif
 #ifndef os_radio
-void os_radio (u1_t mode);
+void os_radio (uint8_t mode);
 #endif
 #ifndef os_getBattLevel
-u1_t os_getBattLevel (void);
+uint8_t os_getBattLevel (void);
 #endif
 
 #ifndef os_rlsbf4
 //! Read 32-bit quantity from given pointer in little endian byte order.
-u4_t os_rlsbf4 (const u1_t* buf);
+uint32_t os_rlsbf4 (const uint8_t* buf);
 #endif
 #ifndef os_wlsbf4
 //! Write 32-bit quantity into buffer in little endian byte order.
-void os_wlsbf4 (u1_t* buf, u4_t value);
+void os_wlsbf4 (uint8_t* buf, uint32_t value);
 #endif
 #ifndef os_rmsbf4
 //! Read 32-bit quantity from given pointer in big endian byte order.
-u4_t os_rmsbf4 (const u1_t* buf);
+uint32_t os_rmsbf4 (const uint8_t* buf);
 #endif
 #ifndef os_wmsbf4
 //! Write 32-bit quantity into buffer in big endian byte order.
-void os_wmsbf4 (u1_t* buf, u4_t value);
+void os_wmsbf4 (uint8_t* buf, uint32_t value);
 #endif
 #ifndef os_rlsbf2
 //! Read 16-bit quantity from given pointer in little endian byte order.
-u2_t os_rlsbf2 (const u1_t* buf);
+uint16_t os_rlsbf2 (const uint8_t* buf);
 #endif
 #ifndef os_wlsbf2
 //! Write 16-bit quantity into buffer in little endian byte order.
-void os_wlsbf2 (u1_t* buf, u2_t value);
+void os_wlsbf2 (uint8_t* buf, uint16_t value);
 #endif
 #ifndef os_rmsbf2
 //! Read 16-bit quantity from given pointer in big endian byte order.
-u2_t os_rmsbf2 (const u1_t* buf);
+uint16_t os_rmsbf2 (const uint8_t* buf);
 #endif
 #ifndef os_wmsbf2
 //! Write 16-bit quantity into buffer in big endian byte order.
-void os_wmsbf2 (u1_t* buf, u2_t value);
+void os_wmsbf2 (uint8_t* buf, uint16_t value);
 #endif
 #ifndef os_wlsbf3
 //! Write 24-bit quantity into buffer in little endian byte order.
-void os_wlsbf3 (u1_t* buf, u4_t value);
+void os_wlsbf3 (uint8_t* buf, uint32_t value);
 #endif
 
-//! Get random number (default impl for u2_t).
+//! Get random number (default impl for uint16_t).
 #ifndef os_getRndU2
-#define os_getRndU2() ((u2_t)((os_getRndU1()<<8)|os_getRndU1()))
+#define os_getRndU2() ((uint16_t)((os_getRndU1()<<8)|os_getRndU1()))
 #endif
 #ifndef os_crc16
-u2_t os_crc16 (u1_t* d, uint len);
+uint16_t os_crc16 (uint8_t* d, uint len);
 #endif
 
 #if defined(CFG_budha) // XXX:obsoleted by budha2 (service)
 // HAL support required by BUDHA:
-u1_t* os_getWSleepParams(void);
-void  os_setWSleepParams(u1_t* params);
-int   os_checkSignature(const u1_t* buf, u1_t len);
-u4_t  os_getFWCRC(void);
-int   os_usedWakeNonce(u2_t nonce);
-void  os_commitWakeNonce(u2_t nonce);
+uint8_t* os_getWSleepParams(void);
+void  os_setWSleepParams(uint8_t* params);
+int   os_checkSignature(const uint8_t* buf, uint8_t len);
+uint32_t  os_getFWCRC(void);
+int   os_usedWakeNonce(uint16_t nonce);
+void  os_commitWakeNonce(uint16_t nonce);
 enum { BOOT_WSLEEP=0, BOOT_OS };
-void  os_setBootMode(u1_t mode);
+void  os_setBootMode(uint8_t mode);
 void  os_boot(void);
-s2_t  os_fwChunk(u1_t* p, u1_t len);
+int16_t  os_fwChunk(uint8_t* p, uint8_t len);
 #endif // defined(CFG_budha)
 
 #endif // !HAS_os_calls
 
 // public radio functions
-void radio_irq_handler (u1_t dio, ostime_t ticks); // (used by EXTI_IRQHandler)
+void radio_irq_handler (uint8_t dio, ostime_t ticks); // (used by EXTI_IRQHandler)
 void radio_init (bool calibrate); // (used by os_init())
-void radio_writeBuf (u1_t addr, u1_t* buf, u1_t len); // (used by perso)
-void radio_readBuf (u1_t addr, u1_t* buf, u1_t len); // (used by perso)
+void radio_writeBuf (uint8_t addr, uint8_t* buf, uint8_t len); // (used by perso)
+void radio_readBuf (uint8_t addr, uint8_t* buf, uint8_t len); // (used by perso)
 void radio_set_irq_timeout (ostime_t timeout);
 
 // radio-specific functions
-bool radio_irq_process (ostime_t irqtime, u1_t diomask);
+bool radio_irq_process (ostime_t irqtime, uint8_t diomask);
 void radio_starttx (bool txcontinuous);
 void radio_startrx (bool rxcontinuous);
 void radio_sleep (void);
 void radio_cca (void);
 void radio_cad (void);
 void radio_cw (void);
-void radio_generate_random (u4_t *words, u1_t len);
+void radio_generate_random (uint32_t *words, uint8_t len);
 
 #ifdef __cplusplus
 } // extern "C"

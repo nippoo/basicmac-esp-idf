@@ -13,8 +13,8 @@ static struct {
     osjob_t* scheduledjobs;
     unsigned int exact;
     union {
-        u4_t randwrds[4];
-        u1_t randbuf[16];
+        uint32_t randwrds[4];
+        uint8_t randbuf[16];
     } /* anonymous */;
 } OS;
 
@@ -45,24 +45,24 @@ void rng_init (void) {
     OS.randbuf[0] = 16;
 }
 
-u1_t os_getRndU1 (void) {
-    u1_t i = OS.randbuf[0];
+uint8_t os_getRndU1 (void) {
+    uint8_t i = OS.randbuf[0];
     ASSERT(i != 0);
     if (i == 16) {
         os_aes(AES_ENC, OS.randbuf, 16); // encrypt seed with any key
         i = 0;
     }
-    u1_t v = OS.randbuf[i++];
+    uint8_t v = OS.randbuf[i++];
     OS.randbuf[0] = i;
     return v;
 }
 
-bit_t os_cca (u2_t rps, u4_t freq) { //XXX:this belongs into os_radio module
+uint8_t os_cca (uint16_t rps, uint32_t freq) { //XXX:this belongs into os_radio module
     (void) rps; (void)freq; // unused
     return 0;  // never grant access
 }
 
-u1_t os_getBattLevel (void) {
+uint8_t os_getBattLevel (void) {
     return hal_getBattLevel();
 }
 
@@ -238,7 +238,7 @@ void os_runloop (void) {
     }
 }
 
-static u1_t evcatEn = 0xFF;
+static uint8_t evcatEn = 0xFF;
 
 void os_logEv (uint8_t evcat, uint8_t evid, uint32_t evparam) {
     if( evcat >= EVCAT_MAX && evcat < sizeof(evcatEn)*8 && (evcatEn & (1<<evcat)) == 0 )

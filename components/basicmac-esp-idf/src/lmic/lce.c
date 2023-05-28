@@ -9,7 +9,7 @@
 #include "lmic.h"
 
 
-bool lce_processJoinAccept (u1_t* jacc, u1_t jacclen, u2_t devnonce) {
+bool lce_processJoinAccept (uint8_t* jacc, uint8_t jacclen, uint16_t devnonce) {
     if( (jacc[0] & HDR_FTYPE) != HDR_FTYPE_JACC || (jacclen != LEN_JA && jacclen != LEN_JAEXT) ) {
         return 0;
     }
@@ -17,9 +17,9 @@ bool lce_processJoinAccept (u1_t* jacc, u1_t jacclen, u2_t devnonce) {
     os_aes(AES_ENC, jacc+1, jacclen-1);
 
     jacclen -= 4;
-    u4_t mic1 = os_rmsbf4(jacc+jacclen);
+    uint32_t mic1 = os_rmsbf4(jacc+jacclen);
 #if defined(CFG_lorawan11)
-    u1_t optneg = jacc[OFF_JA_DLSET] & JA_DLS_OPTNEG;
+    uint8_t optneg = jacc[OFF_JA_DLSET] & JA_DLS_OPTNEG;
     if( optneg ) {
         os_moveMem(jacc+OFF_JA_JOINNONCE+2, jacc+OFF_JA_JOINNONCE, jacclen-OFF_JA_JOINNONCE);
         os_wlsbf2(jacc+OFF_JA_JOINNONCE, devnonce);
@@ -27,7 +27,7 @@ bool lce_processJoinAccept (u1_t* jacc, u1_t jacclen, u2_t devnonce) {
     }
 #endif
     os_getNwkKey(AESkey);
-    u4_t mic2 = os_aes(AES_MIC|AES_MICNOAUX, jacc, jacclen);
+    uint32_t mic2 = os_aes(AES_MIC|AES_MICNOAUX, jacc, jacclen);
 #if defined(CFG_lorawan11)
     if( optneg ) {  // Restore orig frame
         jacclen -= 2;
@@ -38,7 +38,7 @@ bool lce_processJoinAccept (u1_t* jacc, u1_t jacclen, u2_t devnonce) {
     if( mic1 != mic2 ) {
         return 0;
     }
-    u1_t* nwkskey = LMIC.lceCtx.nwkSKey;
+    uint8_t* nwkskey = LMIC.lceCtx.nwkSKey;
     os_clearMem(nwkskey, 16);
     nwkskey[0] = 0x01;
     os_copyMem(nwkskey+1, &jacc[OFF_JA_JOINNONCE], LEN_JOINNONCE+LEN_NETID);
@@ -69,17 +69,17 @@ bool lce_processJoinAccept (u1_t* jacc, u1_t jacclen, u2_t devnonce) {
 }
 
 
-void lce_addMicJoinReq (u1_t* pdu, int len) {
+void lce_addMicJoinReq (uint8_t* pdu, int len) {
     os_getNwkKey(AESkey);
     os_wmsbf4(pdu+len, os_aes(AES_MIC|AES_MICNOAUX, pdu, len));  // MSB because of internal structure of AES
 }
 
-void lce_encKey0 (u1_t* buf) {
+void lce_encKey0 (uint8_t* buf) {
     os_clearMem(AESkey,16);
     os_aes(AES_ENC,buf,16);
 }
 
-static void micB0 (u4_t devaddr, u4_t seqno, u1_t cat, int len) {
+static void micB0 (uint32_t devaddr, uint32_t seqno, uint8_t cat, int len) {
     os_clearMem(AESaux,16);
     AESaux[0]  = 0x49;
     AESaux[5]  = cat;
@@ -88,9 +88,9 @@ static void micB0 (u4_t devaddr, u4_t seqno, u1_t cat, int len) {
     os_wlsbf4(AESaux+10,seqno);
 }
 
-bool lce_verifyMic (s1_t keyid, u4_t devaddr, u4_t seqno, u1_t* pdu, int len) {
+bool lce_verifyMic (int8_t keyid, uint32_t devaddr, uint32_t seqno, uint8_t* pdu, int len) {
     micB0(devaddr, seqno, 1, len);
-    const u1_t* key;
+    const uint8_t* key;
     if( keyid == LCE_NWKSKEY ) {
 #if defined(CFG_lorawan11)
         key = LMIC.lceCtx.nwkSKeyDn;
@@ -109,31 +109,31 @@ bool lce_verifyMic (s1_t keyid, u4_t devaddr, u4_t seqno, u1_t* pdu, int len) {
     return os_aes(AES_MIC, pdu, len) == os_rmsbf4(pdu+len);
 }
 
-void lce_addMic (s1_t keyid, u4_t devaddr, u4_t seqno, u1_t* pdu, int len) {
+void lce_addMic (int8_t keyid, uint32_t devaddr, uint32_t seqno, uint8_t* pdu, int len) {
     if( keyid != LCE_NWKSKEY ) {
         return; // Illegal key index
     }
     micB0(devaddr, seqno, 0, len);
-    const u1_t* key = LMIC.lceCtx.nwkSKey;
+    const uint8_t* key = LMIC.lceCtx.nwkSKey;
     os_copyMem(AESkey,key,16);
     // MSB because of internal structure of AES
     os_wmsbf4(pdu+len, os_aes(AES_MIC, pdu, len));
 }
 
-u4_t lce_micKey0 (u4_t devaddr, u4_t seqno, u1_t* pdu, int len) {
+uint32_t lce_micKey0 (uint32_t devaddr, uint32_t seqno, uint8_t* pdu, int len) {
     micB0(devaddr, seqno, 0, len);
     os_clearMem(AESkey,16);
     // MSB because of internal structure of AES
-    u1_t mic[4];
+    uint8_t mic[4];
     os_wmsbf4(mic, os_aes(AES_MIC, pdu, len));
     return os_rlsbf4(mic);
 }
 
-void lce_cipher (s1_t keyid, u4_t devaddr, u4_t seqno, int cat, u1_t* payload, int len) {
+void lce_cipher (int8_t keyid, uint32_t devaddr, uint32_t seqno, int cat, uint8_t* payload, int len) {
     if(len <= 0 || (cat==LCE_SCC_UP && (LMIC.opmode & OP_NOCRYPT)) ) {
         return;
     }
-    const u1_t* key;
+    const uint8_t* key;
     if( keyid == LCE_NWKSKEY ) {
 #if defined(CFG_lorawan11)
         key = cat==LCE_SCC_DN ? LMIC.lceCtx.nwkSKeyDn : LMIC.lceCtx.nwkSKey;
@@ -161,18 +161,18 @@ void lce_cipher (s1_t keyid, u4_t devaddr, u4_t seqno, int cat, u1_t* payload, i
 
 
 #if defined(CFG_lorawan11)
-void lce_loadSessionKeys (const u1_t* nwkSKey, const u1_t* nwkSKeyDn, const u1_t* appSKey)
+void lce_loadSessionKeys (const uint8_t* nwkSKey, const uint8_t* nwkSKeyDn, const uint8_t* appSKey)
 #else
-void lce_loadSessionKeys (const u1_t* nwkSKey, const u1_t* appSKey)
+void lce_loadSessionKeys (const uint8_t* nwkSKey, const uint8_t* appSKey)
 #endif
 {
-    if( nwkSKey != (u1_t*)0 )
+    if( nwkSKey != (uint8_t*)0 )
         os_copyMem(LMIC.lceCtx.nwkSKey, nwkSKey, 16);
 #if defined(CFG_lorawan11)
-    if( nwkSKeyDn != (u1_t*)0 )
+    if( nwkSKeyDn != (uint8_t*)0 )
         os_copyMem(LMIC.lceCtx.nwkSKeyDn, nwkSKeyDn, 16);
 #endif
-    if( appSKey != (u1_t*)0 )
+    if( appSKey != (uint8_t*)0 )
         os_copyMem(LMIC.lceCtx.appSKey, appSKey, 16);
 }
 

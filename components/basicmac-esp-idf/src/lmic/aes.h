@@ -25,11 +25,11 @@ extern "C"{
 #define AES_MICNOAUX  0x08
 #endif
 #ifndef AESkey  // if AESkey is defined as macro all other values must be too
-extern u1_t* AESkey;
-extern u1_t* AESaux;
+extern uint8_t* AESkey;
+extern uint8_t* AESaux;
 #endif
 #ifndef os_aes
-u4_t os_aes (u1_t mode, u1_t* buf, u2_t len);
+uint32_t os_aes (uint8_t mode, uint8_t* buf, uint16_t len);
 #endif
 
 #ifdef __cplusplus

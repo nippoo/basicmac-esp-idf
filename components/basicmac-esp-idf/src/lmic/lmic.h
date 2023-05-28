@@ -30,8 +30,8 @@ extern "C"{
 // band
 typedef struct {
     freq_t      lo, hi;
-    u2_t        txcap;
-    s1_t        txpow;
+    uint16_t        txcap;
+    int8_t        txpow;
 } band_t;
 
 #define MAX_BANDS       8
@@ -82,11 +82,11 @@ enum { DNCHSPACING_500kHz =  600000 };  //XXX:hack
 enum { DNCHSPACING_125kHz =  200000 };  //XXX:hack
 
 typedef struct {
-    void     (*disableChannel) (u1_t chidx);
+    void     (*disableChannel) (uint8_t chidx);
     void     (*initDefaultChannels) (void);
     void     (*prepareDn) ();
-    u1_t     (*applyChannelMap) (u1_t chpage, u2_t chmap, u2_t* dest);
-    u1_t     (*checkChannelMap) (u2_t* map);
+    uint8_t     (*applyChannelMap) (uint8_t chpage, uint16_t chmap, uint16_t* dest);
+    uint8_t     (*checkChannelMap) (uint16_t* map);
     void     (*syncDatarate) (void);
     void     (*updateTx) (ostime_t txbeg);
     ostime_t (*nextTx) (ostime_t now);
@@ -96,15 +96,15 @@ typedef struct {
 // Immutable region definition
 // TODO: reorder struct members to optimize padding
 typedef struct {
-    u4_t flags;
+    uint32_t flags;
     union {
         // dynamic channels
         struct {
             freq_t      defaultCh[MIN_DYN_CHNLS];       // default channel frequencies
             freq_t      beaconFreq;                     // beacon frequency
-            u2_t        chTxCap;                        // per-channel DC
-            u2_t        ccaTime;                        // CCA time (ticks)
-            s1_t        ccaThreshold;                   // CCA threshold
+            uint16_t        chTxCap;                        // per-channel DC
+            uint16_t        ccaTime;                        // CCA time (ticks)
+            int8_t        ccaThreshold;                   // CCA threshold
             band_t      bands[MAX_BANDS];               // band definitions
         };
 
@@ -113,8 +113,8 @@ typedef struct {
             freq_t      baseFreq125;                    // base frequency for 125kHz channels
             freq_t      baseFreqFix;                    // base frequency for fixed-DR channels
             freq_t      baseFreqDn;                     // base frequency downlink channels
-            u1_t        numChBlocks;                    // number of 8-channel blocks
-            u1_t        numChDnBlocks;                  // number of 8-channel blocks for downlink
+            uint8_t        numChBlocks;                    // number of 8-channel blocks
+            uint8_t        numChDnBlocks;                  // number of 8-channel blocks for downlink
             dr_t        joinDr;                         // join channel data rate
             dr_t        fixDr;                          // fixed-DR channel data rate
         };
@@ -122,20 +122,20 @@ typedef struct {
 
     // Common
     const rfuncs_t*     rfuncs;
-    const u1_t*         dr2rps;                 // pointer to DR table
+    const uint8_t*         dr2rps;                 // pointer to DR table
     freq_t              minFreq, maxFreq;       // legal frequency range
     freq_t              rx2Freq;                // RX2 frequency
     freq_t              pingFreq;               // ping frequency
     dr_t                rx2Dr;                  // RX2 data rate
     dr_t                pingDr;                 // ping data rate
     dr_t                beaconDr;               // beacon data rate
-    u1_t                beaconOffInfo;          // offset beacon info field
-    u1_t                beaconLen;              // beacon length
+    uint8_t                beaconOffInfo;          // offset beacon info field
+    uint8_t                beaconLen;              // beacon length
     ostime_t            beaconAirtime;          // beacon air time
     eirp_t              maxEirp;                // max. EIRP (initial value)
-    s1_t                rx1DrOff[8];            // RX1 data rate offsets
-    u1_t                dr2maxAppPload[16];     // max application payload (assuming no repeater and no fopts)
-    u1_t                regcode;                // external region code
+    int8_t                rx1DrOff[8];            // RX1 data rate offsets
+    uint8_t                dr2maxAppPload[16];     // max application payload (assuming no repeater and no fopts)
+    uint8_t                regcode;                // external region code
 
 } region_t;
 
@@ -154,8 +154,8 @@ enum { MAX_RXSYMS         = 100 };   // stop tracking beacon beyond this
 #define RXDERR_INI 50  // ppm
 #endif
 
-#define LINK_CHECK_OFF  ((s4_t)0x80000000)
-#define LINK_CHECK_INIT ((s4_t)(-LMIC.adrAckLimit))
+#define LINK_CHECK_OFF  ((int32_t)0x80000000)
+#define LINK_CHECK_INIT ((int32_t)(-LMIC.adrAckLimit))
 #define LINK_CHECK_DEAD (LMIC.adrAckDelay)
 
 enum { TIME_RESYNC        = 6*128 }; // secs
@@ -172,13 +172,13 @@ enum { KEEP_TXPOWADJ = -128 };
 #if !defined(DISABLE_CLASSB)
 //! \internal
 typedef struct {
-    u1_t     dr;
-    u1_t     intvExp;   // bits: 7:pend, 3:illegal intv, 2-0:intv
-    u1_t     slot;      // runs from 0 to 128
-    u1_t     rxsyms;
+    uint8_t     dr;
+    uint8_t     intvExp;   // bits: 7:pend, 3:illegal intv, 2-0:intv
+    uint8_t     slot;      // runs from 0 to 128
+    uint8_t     rxsyms;
     ostime_t rxbase;
     ostime_t rxtime;    // start of next spot
-    u4_t     freq;
+    uint32_t     freq;
 } rxsched_t;
 
 //! Parsing and tracking states of beacons.
@@ -190,14 +190,14 @@ enum { BCN_NONE    = 0x00,   //!< No beacon received
 //! Information about the last and previous beacons.
 typedef struct {
     ostime_t txtime;  //!< Time when the beacon was sent
-    s1_t     rssi;    //!< Adjusted RSSI value of last received beacon
-    s1_t     snr;     //!< Scaled SNR value of last received beacon
-    u1_t     flags;   //!< Last beacon reception and tracking states. See BCN_* values.
-    u4_t     time;    //!< GPS time in seconds of last beacon (received or surrogate)
+    int8_t     rssi;    //!< Adjusted RSSI value of last received beacon
+    int8_t     snr;     //!< Scaled SNR value of last received beacon
+    uint8_t     flags;   //!< Last beacon reception and tracking states. See BCN_* values.
+    uint32_t     time;    //!< GPS time in seconds of last beacon (received or surrogate)
     //
-    u1_t     info;    //!< Info field of last beacon (valid only if BCN_FULL set)
-    s4_t     lat;     //!< Lat field of last beacon (valid only if BCN_FULL set)
-    s4_t     lon;     //!< Lon field of last beacon (valid only if BCN_FULL set)
+    uint8_t     info;    //!< Info field of last beacon (valid only if BCN_FULL set)
+    int32_t     lat;     //!< Lat field of last beacon (valid only if BCN_FULL set)
+    int32_t     lon;     //!< Lon field of last beacon (valid only if BCN_FULL set)
 } bcninfo_t;
 #endif
 
@@ -274,14 +274,14 @@ enum {
 
 typedef struct {
     devaddr_t   grpaddr;      // multicast group address
-    u1_t        nwkKeyDn[16]; // network session key for down-link
-    u1_t        appKey[16];   // application session key
-    u4_t        seqnoADn;     // down stream seqno (AFCntDown)
+    uint8_t        nwkKeyDn[16]; // network session key for down-link
+    uint8_t        appKey[16];   // application session key
+    uint32_t        seqnoADn;     // down stream seqno (AFCntDown)
 } session_t;
 
 // duty cycle/dwell time relative to baseAvail in sec.
 // To avoid roll over this needs to be updated.
-typedef u2_t avail_t;
+typedef uint16_t avail_t;
 
 #define MAX_MULTICAST_SESSIONS LCE_MCGRP_MAX
 
@@ -292,20 +292,20 @@ struct lmic_t {
     ostime_t    txend;
     ostime_t    rxtime;  // timestamp when frame was fully received
     ostime_t    rxtime0; // timestamp when preamble of frame was received (computed)
-    u4_t        freq;
-    s1_t        rssi;
-    s1_t        snr;
+    uint32_t        freq;
+    int8_t        rssi;
+    int8_t        snr;
     rps_t       rps;
     rps_t       custom_rps; // Used for CUSTOM_DR
-    u1_t        rxsyms;
-    u1_t        dndr;
-    s1_t        txpow;     // dBm -- needs to be combined with brdTxPowOff
+    uint8_t        rxsyms;
+    uint8_t        dndr;
+    int8_t        txpow;     // dBm -- needs to be combined with brdTxPowOff
 
     osjob_t     osjob;
 
     osxtime_t   baseAvail;                      // base time for availability
     avail_t     globalAvail;                    // next available DC (global)
-    u1_t        noDC;                           // disable all duty cycle
+    uint8_t        noDC;                           // disable all duty cycle
 
     const region_t* region;
     union {
@@ -318,113 +318,113 @@ struct lmic_t {
             freq_t      chDnFreq[MAX_DYN_CHNLS];// downlink frequency
             drmap_t     chDrMap[MAX_DYN_CHNLS]; // enabled data rates
 
-            u2_t        channelMap;             // active channels
+            uint16_t        channelMap;             // active channels
         } dyn;
 #endif
 #ifdef REG_FIX
         // FCC-like (fixed channels)
         struct {
-            u2_t        channelMap[CHMAP_SZ];           // enabled bits
-            u1_t        hoplist[MAX_FIX_CHNLS_125];     // hoplist
+            uint16_t        channelMap[CHMAP_SZ];           // enabled bits
+            uint8_t        hoplist[MAX_FIX_CHNLS_125];     // hoplist
         } fix;
 #endif
     };
 
-    u1_t        refChnl;         // channel randomizer - search relative to this indicator
-    u1_t        txChnl;          // channel for next TX
-    u1_t        globalDutyRate;  // max rate: 1/2^k
+    uint8_t        refChnl;         // channel randomizer - search relative to this indicator
+    uint8_t        txChnl;          // channel for next TX
+    uint8_t        globalDutyRate;  // max rate: 1/2^k
     ostime_t    globalDutyAvail; // time device can send again  -- XXX:PROBLEM if no TX for ~18h we have a rollover here!! --> avail_t??
 
-    u4_t        netid;        // current network id (~0 - none)
-    u2_t        opmode;
-    u1_t        clmode;       // current/pending class A/B/C
-    u1_t        pollcnt;      // >0 waiting for an answer from network
-    u1_t        nbTrans;      // ADR controlled frame repetition
-    s1_t        txPowAdj;     // adjustment for txpow (ADR controlled)
-    s1_t        brdTxPowOff;  // board-specific power adjustment offset
+    uint32_t        netid;        // current network id (~0 - none)
+    uint16_t        opmode;
+    uint8_t        clmode;       // current/pending class A/B/C
+    uint8_t        pollcnt;      // >0 waiting for an answer from network
+    uint8_t        nbTrans;      // ADR controlled frame repetition
+    int8_t        txPowAdj;     // adjustment for txpow (ADR controlled)
+    int8_t        brdTxPowOff;  // board-specific power adjustment offset
     dr_t        datarate;     // current data rate
     cr_t        errcr;        // error coding rate (used for TX only)
-    u1_t        rejoinCnt;    // adjustment for rejoin datarate
-    s2_t        drift;        // last measured drift
-    s2_t        lastDriftDiff;
-    s2_t        maxDriftDiff;
+    uint8_t        rejoinCnt;    // adjustment for rejoin datarate
+    int16_t        drift;        // last measured drift
+    int16_t        lastDriftDiff;
+    int16_t        maxDriftDiff;
     osxtime_t   gpsEpochOff;  // gpstime = gpsEpochOff+getXTime(), 0=undefined
-    s4_t        rxdErrs[RXDERR_NUM];
-    u1_t        rxdErrIdx;
+    int32_t        rxdErrs[RXDERR_NUM];
+    uint8_t        rxdErrIdx;
 
-    u1_t        pendTxPort;
-    u1_t        pendTxConf;   // confirmed data
-    u1_t        pendTxLen;    // +0x80 = confirmed
-    u1_t        pendTxData[MAX_LEN_PAYLOAD];
-    u1_t        pendTxNoRx;   // don't listen for down data after tx
+    uint8_t        pendTxPort;
+    uint8_t        pendTxConf;   // confirmed data
+    uint8_t        pendTxLen;    // +0x80 = confirmed
+    uint8_t        pendTxData[MAX_LEN_PAYLOAD];
+    uint8_t        pendTxNoRx;   // don't listen for down data after tx
 
-    u2_t        devNonce;     // last generated nonce
+    uint16_t        devNonce;     // last generated nonce
     lce_ctx_t   lceCtx;
     devaddr_t   devaddr;
-    u4_t        seqnoDn;      // device level down stream seqno
+    uint32_t        seqnoDn;      // device level down stream seqno
 #if defined(CFG_lorawan11)
-    u4_t        seqnoADn;     // device level down stream seqno (AFCntDown)
+    uint32_t        seqnoADn;     // device level down stream seqno (AFCntDown)
 #endif
-    u4_t        seqnoUp;
+    uint32_t        seqnoUp;
 
-    u1_t        dnConf;       // dn frame confirm pending: LORA::FCT_ACK or 0
-    s4_t        adrAckReq;    // counter until we reset data rate (0x80000000=off)
-    u4_t        adrAckLimit;  // ADR_ACK_LIMIT
-    u4_t        adrAckDelay;  // ADR_ACK_DELAY
+    uint8_t        dnConf;       // dn frame confirm pending: LORA::FCT_ACK or 0
+    int32_t        adrAckReq;    // counter until we reset data rate (0x80000000=off)
+    uint32_t        adrAckLimit;  // ADR_ACK_LIMIT
+    uint32_t        adrAckDelay;  // ADR_ACK_DELAY
 
-    u1_t        margin;       // bits 7/6:RFU, 0-5: SNR of last DevStatusReq frame, reported by DevStatusAns to network
-    u1_t        gwmargin;     // last reported by network via LinkCheckAns
-    u1_t        gwcnt;        //  - ditto -
-    u1_t        foptsUpLen;
-    u1_t        foptsUp[64];  // pending FOpts in up direction - cleared after next send
-    bit_t       devsAns;      // device status answer pending
-    u1_t        adrEnabled;
-    u1_t        moreData;     // NWK has more data pending
-    bit_t       dutyCapAns;   // have to ACK duty cycle settings
-    //XXX:old: u1_t        snchAns;      // answer set new channel
-    u1_t        dn1Dly;       // delay in secs to DNW1
-    s1_t        dn1DrOffIdx;  // index into DR offset table (can be negative in some regions!)
+    uint8_t        margin;       // bits 7/6:RFU, 0-5: SNR of last DevStatusReq frame, reported by DevStatusAns to network
+    uint8_t        gwmargin;     // last reported by network via LinkCheckAns
+    uint8_t        gwcnt;        //  - ditto -
+    uint8_t        foptsUpLen;
+    uint8_t        foptsUp[64];  // pending FOpts in up direction - cleared after next send
+    uint8_t       devsAns;      // device status answer pending
+    uint8_t        adrEnabled;
+    uint8_t        moreData;     // NWK has more data pending
+    uint8_t       dutyCapAns;   // have to ACK duty cycle settings
+    //XXX:old: uint8_t        snchAns;      // answer set new channel
+    uint8_t        dn1Dly;       // delay in secs to DNW1
+    int8_t        dn1DrOffIdx;  // index into DR offset table (can be negative in some regions!)
     // 2nd RX window (after up stream)
-    u1_t        dn2Dr;
-    u4_t        dn2Freq;
-    u1_t        dn2Ans;       // 0=no answer pend, 0x80+ACKs
-    u1_t        dn1DlyAns;    // 0=no answer pend, 0x80 send MCMD_RXTM_ANS
-    u1_t        dnfqAns;      // # of DNFQ in this down frame
-    u1_t        dnfqAnsPend;  // pending ACK bits (2 each)
-    u4_t        dnfqAcks;     // ack bit pending
+    uint8_t        dn2Dr;
+    uint32_t        dn2Freq;
+    uint8_t        dn2Ans;       // 0=no answer pend, 0x80+ACKs
+    uint8_t        dn1DlyAns;    // 0=no answer pend, 0x80 send MCMD_RXTM_ANS
+    uint8_t        dnfqAns;      // # of DNFQ in this down frame
+    uint8_t        dnfqAnsPend;  // pending ACK bits (2 each)
+    uint32_t        dnfqAcks;     // ack bit pending
 
     // multicast sessions
     session_t  sessions[MAX_MULTICAST_SESSIONS];
 
 #if defined(CFG_lorawan11)
-    u1_t        opts;         // negotiated protocol options
+    uint8_t        opts;         // negotiated protocol options
 #endif
 
 #if !defined(DISABLE_CLASSB)
     // Class B state
-    u1_t        missedBcns;   // unable to track last N beacons
-    s1_t        askForTime;   // how often to ask for time
-    //XXX:old: u1_t        pingSetAns;   // answer set cmd and ACK bits
+    uint8_t        missedBcns;   // unable to track last N beacons
+    int8_t        askForTime;   // how often to ask for time
+    //XXX:old: uint8_t        pingSetAns;   // answer set cmd and ACK bits
     rxsched_t   ping;         // pingable setup
 #endif
 
     // Public part of MAC state
-    u1_t        txCnt;
-    u1_t        txrxFlags;  // transaction flags (TX-RX combo)
-    u1_t        dataBeg;    // 0 or start of data (dataBeg-1 is port)
-    u1_t        dataLen;    // 0 no data or zero length data, >0 byte count of data
-    u1_t        frame[MAX_LEN_FRAME];
+    uint8_t        txCnt;
+    uint8_t        txrxFlags;  // transaction flags (TX-RX combo)
+    uint8_t        dataBeg;    // 0 or start of data (dataBeg-1 is port)
+    uint8_t        dataLen;    // 0 no data or zero length data, >0 byte count of data
+    uint8_t        frame[MAX_LEN_FRAME];
 
 #if !defined(DISABLE_CLASSB)
-    u1_t        bcnfAns;      // mcmd beacon freq: bit7:pending, bit0:ACK/NACK
-    u1_t        bcnChnl;
-    u4_t        bcnFreq;      // 0=default, !=0: specific BCN freq/no hopping
-    u1_t        bcnRxsyms;    //
+    uint8_t        bcnfAns;      // mcmd beacon freq: bit7:pending, bit0:ACK/NACK
+    uint8_t        bcnChnl;
+    uint32_t        bcnFreq;      // 0=default, !=0: specific BCN freq/no hopping
+    uint8_t        bcnRxsyms;    //
     ostime_t    bcnRxtime;
     bcninfo_t   bcninfo;      // Last received beacon info
 #endif
 
-    u1_t        noRXIQinversion;
+    uint8_t        noRXIQinversion;
 
     // automatic sending of MAC uplinks without payload
     osjob_t     polljob;      // job to schedule engineUpdate in poll mode
@@ -432,14 +432,14 @@ struct lmic_t {
     ostime_t    polltimeout;  // timeout when frame will be sent even without payload (default 0)
 
     // radio power consumption
-    u4_t        radioPwr_ua;  // power consumption of current radio operation in uA
+    uint32_t        radioPwr_ua;  // power consumption of current radio operation in uA
 
 #ifdef CFG_testpin
     // Signal specific event via a GPIO pin.
     // Test pin is routed to PPS pin of SX1301 to record time.
     // Current events:
     //  1=txdone, 2=rxend, 3=rxstart
-    u1_t        testpinMode;
+    uint8_t        testpinMode;
 #endif
 };
 //! \var struct lmic_t LMIC
@@ -449,8 +449,8 @@ DECLARE_LMIC; //!< \internal
 //! Construct a bit map of allowed datarates from drlo to drhi (both included).
 #define DR_RANGE_MAP(drlo,drhi) ((drmap_t) ((0xFFFF<<(drlo)) & (0xFFFF>>(15-(drhi)))))
 
-bit_t LMIC_setupChannel (u1_t channel, freq_t freq, u2_t drmap);
-void  LMIC_disableChannel (u1_t channel);
+uint8_t LMIC_setupChannel (uint8_t channel, freq_t freq, uint16_t drmap);
+void  LMIC_disableChannel (uint8_t channel);
 
 // Manually select the next channel for the next transmission.
 //
@@ -462,7 +462,7 @@ void  LMIC_disableChannel (u1_t channel);
 // The selected channel applies only to the next transmission. Call this
 // *after* setting the datarate (if needed) with LMIC_setDrTxpow(),
 // since that forces a new channel to be selected automatically.
-void LMIC_selectChannel(u1_t channel);
+void LMIC_selectChannel(uint8_t channel);
 
 // Use a custom datrate and rps value.
 //
@@ -526,30 +526,30 @@ void LMIC_selectChannel(u1_t channel);
 // To revert RX2 back to a normal datarate, just set LMIC.dn2Dr to the
 // appropriate datarate directly.
 dr_t  LMIC_setCustomDr  (rps_t custom_rps, dr_t dndr);
-void  LMIC_setDrTxpow   (dr_t dr, s1_t txpow);  // set default/start DR/txpow
-void  LMIC_setAdrMode   (bit_t enabled);        // set ADR mode (if mobile turn off)
-bit_t LMIC_startJoining (void);
+void  LMIC_setDrTxpow   (dr_t dr, int8_t txpow);  // set default/start DR/txpow
+void  LMIC_setAdrMode   (uint8_t enabled);        // set ADR mode (if mobile turn off)
+uint8_t LMIC_startJoining (void);
 
 void  LMIC_shutdown     (void);
 void  LMIC_init         (void);
 void  LMIC_reset        (void);
-void  LMIC_reset_ex     (u1_t regionIdx);
-int   LMIC_regionIdx    (u1_t regionCode);
-u1_t  LMIC_regionCode   (u1_t regionIdx);
+void  LMIC_reset_ex     (uint8_t regionIdx);
+int   LMIC_regionIdx    (uint8_t regionCode);
+uint8_t  LMIC_regionCode   (uint8_t regionIdx);
 void  LMIC_clrTxData    (void);
 void  LMIC_setTxData    (void);
-int   LMIC_setTxData2   (u1_t port, u1_t* data, u1_t dlen, u1_t confirmed);
+int   LMIC_setTxData2   (uint8_t port, uint8_t* data, uint8_t dlen, uint8_t confirmed);
 void  LMIC_sendAlive    (void);
 
 #if !defined(DISABLE_CLASSB)
-u1_t  LMIC_enableTracking  (u1_t tryBcnInfo);
+uint8_t  LMIC_enableTracking  (uint8_t tryBcnInfo);
 void  LMIC_disableTracking (void);
 #endif
 
-void  LMIC_setClassC     (u1_t enabled);
+void  LMIC_setClassC     (uint8_t enabled);
 #if !defined(DISABLE_CLASSB)
 void  LMIC_stopPingable  (void);
-u1_t  LMIC_setPingable   (u1_t intvExp);
+uint8_t  LMIC_setPingable   (uint8_t intvExp);
 #endif
 void  LMIC_tryRejoin     (void);
 
@@ -557,23 +557,23 @@ void  LMIC_tryRejoin     (void);
 int  LMIC_scan (ostime_t timeout);
 int  LMIC_track (ostime_t when);
 #endif
-int LMIC_setMultiCastSession (devaddr_t grpaddr, const u1_t* nwkKeyDn, const u1_t* appKey, u4_t seqnoAdn);
+int LMIC_setMultiCastSession (devaddr_t grpaddr, const uint8_t* nwkKeyDn, const uint8_t* appKey, uint32_t seqnoAdn);
 
-void LMIC_setSession (u4_t netid, devaddr_t devaddr, const u1_t* nwkKey,
+void LMIC_setSession (uint32_t netid, devaddr_t devaddr, const uint8_t* nwkKey,
 #if defined(CFG_lorawan11)
-        const u1_t* nwkKeyDn,
+        const uint8_t* nwkKeyDn,
 #endif
-        const u1_t* appKey);
-void LMIC_setLinkCheckMode (bit_t enabled);
-void LMIC_setLinkCheck (u4_t limit, u4_t delay);
+        const uint8_t* appKey);
+void LMIC_setLinkCheckMode (uint8_t enabled);
+void LMIC_setLinkCheck (uint32_t limit, uint32_t delay);
 void LMIC_askForLinkCheck (void);
 
 dr_t     LMIC_fastestDr (); // fastest UP datarate
 dr_t     LMIC_slowestDr (); // slowest UP datarate
-rps_t    LMIC_updr2rps (u1_t dr);
-rps_t    LMIC_dndr2rps (u1_t dr);
-ostime_t LMIC_calcAirTime (rps_t rps, u1_t plen);
-u1_t     LMIC_maxAppPayload();
+rps_t    LMIC_updr2rps (uint8_t dr);
+rps_t    LMIC_dndr2rps (uint8_t dr);
+ostime_t LMIC_calcAirTime (rps_t rps, uint8_t plen);
+uint8_t     LMIC_maxAppPayload();
 ostime_t LMIC_nextTx (ostime_t now);
 void     LMIC_disableDC (void);
 
@@ -591,9 +591,9 @@ DECL_ON_LMIC_EVENT;
 // !!!See implementation for caveats!!!
 #if defined(CFG_extapi)
 void     LMIC_enableFastJoin (void);
-ostime_t LMIC_dr2hsym (dr_t dr, s1_t num);
+ostime_t LMIC_dr2hsym (dr_t dr, int8_t num);
 void     LMIC_updateTx (ostime_t now);
-void     LMIC_getRxdErrInfo (s4_t* skew, u4_t* span);
+void     LMIC_getRxdErrInfo (int32_t* skew, uint32_t* span);
 #endif
 
 

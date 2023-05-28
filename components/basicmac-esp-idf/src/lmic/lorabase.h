@@ -14,15 +14,15 @@ extern "C"{
 enum _cr_t { CR_4_5=0, CR_4_6, CR_4_7, CR_4_8 };
 enum _sf_t { FSK=0, SF7, SF8, SF9, SF10, SF11, SF12, SFrfu };
 enum _bw_t { BW125=0, BW250, BW500, BWrfu };
-typedef u1_t cr_t;
-typedef u1_t sf_t;
-typedef u1_t bw_t;
-typedef u1_t dr_t;
+typedef uint8_t cr_t;
+typedef uint8_t sf_t;
+typedef uint8_t bw_t;
+typedef uint8_t dr_t;
 // Radio parameter set (encodes SF/BW/CR/IH/NOCRC)
-typedef u2_t rps_t;
-typedef u2_t drmap_t;
-typedef s4_t freq_t;
-typedef s1_t eirp_t;
+typedef uint16_t rps_t;
+typedef uint16_t drmap_t;
+typedef int32_t freq_t;
+typedef int8_t eirp_t;
 
 enum { ILLEGAL_DR  = 0xFF };
 enum { ILLEGAL_RPS = 0xFF };
@@ -290,7 +290,7 @@ enum {
 };
 
 // Device address
-typedef u4_t devaddr_t;
+typedef uint32_t devaddr_t;
 
 // RX quality (device)
 enum { RSSI_OFF=64, SNR_SCALEUP=4 };
@@ -324,9 +324,9 @@ inline int enDro (rps_t params) { return (int)getSf(params) - getBw(params) >= S
 
 
 // Convert between dBm values and power codes (MCMD_LADR_XdBm)
-s1_t pow2dBm (u1_t mcmd_ladr_p1);
+int8_t pow2dBm (uint8_t mcmd_ladr_p1);
 // Calculate airtime
-ostime_t calcAirTime (rps_t rps, u1_t plen);
+ostime_t calcAirTime (rps_t rps, uint8_t plen);
 // Sensitivity at given SF/BW
 int getSensitivity (rps_t rps);
 
